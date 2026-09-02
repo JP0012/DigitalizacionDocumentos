@@ -237,72 +237,73 @@ function procesarDocumento() {
     const datos = imagen.data;
 
 
-    // ==========================================
-    // 7. CONVERTIR A ESCALA DE GRISES
-    // ==========================================
+// ==========================================
+// 7. CONVERTIR A ESCALA DE GRISES
+// ==========================================
 
-    const grises = new Uint8Array(
-        anchoFinal * altoFinal
-    );
+for (let i = 0; i < datos.length; i += 4) {
 
-
-    for (let i = 0, j = 0; i < datos.length; i += 4, j++) {
-
-        const rojo = datos[i];
-        const verde = datos[i + 1];
-        const azul = datos[i + 2];
+    const rojo = datos[i];
+    const verde = datos[i + 1];
+    const azul = datos[i + 2];
 
 
-        const gris =
-            (0.299 * rojo) +
-            (0.587 * verde) +
-            (0.114 * azul);
-
-
-        grises[j] = gris;
-
-    }
+    // Conversión a escala de grises
+    let gris =
+        (0.299 * rojo) +
+        (0.587 * verde) +
+        (0.114 * azul);
 
 
     // ==========================================
-    // 8. CALCULAR UMBRAL AUTOMÁTICAMENTE
+    // 8. AUMENTAR CONTRASTE SIN ELIMINAR
+    //    LOS TONOS INTERMEDIOS
     // ==========================================
 
-    const umbral = calcularOtsu(grises);
+    const contraste = 1.15;
 
-
-    console.log("Umbral calculado:", umbral);
-
-
-    // ==========================================
-    // 9. BLANCO Y NEGRO
-    // ==========================================
-
-    for (let i = 0, j = 0; i < datos.length; i += 4, j++) {
-
-        const valor =
-            grises[j] > umbral
-                ? 255
-                : 0;
-
-
-        datos[i] = valor;
-        datos[i + 1] = valor;
-        datos[i + 2] = valor;
-        datos[i + 3] = 255;
-
-    }
+    gris =
+        ((gris - 128) * contraste) + 128;
 
 
     // ==========================================
-    // 10. MOSTRAR RESULTADO
+    // 9. ACLARAR LIGERAMENTE EL PAPEL
     // ==========================================
 
-    contexto.putImageData(
-        imagen,
+    gris += 8;
+
+
+    // ==========================================
+    // 10. LIMITAR LOS VALORES
+    // ==========================================
+
+    gris = Math.max(
         0,
-        0
+        Math.min(255, gris)
     );
+
+
+    // ==========================================
+    // 11. APLICAR EL RESULTADO
+    // ==========================================
+
+    datos[i] = gris;
+    datos[i + 1] = gris;
+    datos[i + 2] = gris;
+    datos[i + 3] = 255;
+
+}
+
+
+// ==========================================
+// 12. MOSTRAR DOCUMENTO
+// ==========================================
+
+contexto.putImageData(
+    imagen,
+    0,
+    0
+);
 
 }
 
