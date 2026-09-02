@@ -31,12 +31,21 @@ const zoomCamara =
 const valorZoom =
     document.getElementById("valorZoom");
 
+const canvasDeteccion =
+    document.getElementById("canvasDeteccion");
+
+const contextoDeteccion =
+    canvasDeteccion.getContext("2d");
+
+    let deteccionActiva = false;
+
+
 let streamCamara;
 
 
-// =====================================================
-// ABRIR CÁMARA
-// =====================================================
+/* ==========================================
+   ABRIR CÁMARA
+========================================== */
 
 btnAbrirCamara.addEventListener("click", async () => {
 
@@ -65,20 +74,34 @@ btnAbrirCamara.addEventListener("click", async () => {
 
             });
 
-        video.srcObject =
-            streamCamara;
+
+        video.srcObject = streamCamara;
+
+        video.addEventListener(
+            "loadedmetadata",
+            iniciarDeteccionEnVivo,
+            { once: true }
+        );
+
+
+        /* ==========================================
+           CONFIGURAR ZOOM
+        =========================================== */
 
         configurarZoom();
 
-        contenedorCamara.classList.remove(
-            "oculto"
-        );
+
+        /* ==========================================
+           MOSTRAR CÁMARA
+        =========================================== */
+
+        contenedorCamara.classList.remove("oculto");
+
 
         document
             .getElementById("controlesCamara")
-            .classList.remove(
-                "oculto"
-            );
+            .classList.remove("oculto");
+
 
     } catch (error) {
 
@@ -93,9 +116,10 @@ btnAbrirCamara.addEventListener("click", async () => {
 });
 
 
-// =====================================================
-// CAPTURAR
-// =====================================================
+
+/* ==========================================
+   CAPTURAR DOCUMENTO
+========================================== */
 
 btnCapturar.addEventListener("click", () => {
 
@@ -105,10 +129,8 @@ btnCapturar.addEventListener("click", () => {
     const videoHeight =
         video.videoHeight;
 
-    if (
-        !videoWidth ||
-        !videoHeight
-    ) {
+
+    if (!videoWidth || !videoHeight) {
 
         alert(
             "La cámara todavía no está lista."
@@ -118,37 +140,59 @@ btnCapturar.addEventListener("click", () => {
 
     }
 
+
+    /* ==========================================
+       CANVAS ORIGINAL
+    =========================================== */
+
     canvas.width =
         videoWidth;
 
     canvas.height =
         videoHeight;
 
+
     const contexto =
         canvas.getContext("2d");
 
+
     contexto.drawImage(
+
         video,
+
         0,
+
         0,
+
         videoWidth,
+
         videoHeight
+
     );
 
-    resultado.classList.remove(
-        "oculto"
-    );
+
+    resultado.classList.remove("oculto");
+
+
+    /* ==========================================
+       PROCESAR
+    =========================================== */
 
     procesarDocumento();
 
 });
 
 
-// =====================================================
-// PROCESAR DOCUMENTO
-// =====================================================
+
+/* ==========================================
+   PROCESAR DOCUMENTO
+========================================== */
 
 function procesarDocumento() {
+
+    /*
+     * Comprobamos que OpenCV esté disponible.
+     */
 
     if (
         typeof cv === "undefined" ||
@@ -164,36 +208,27 @@ function procesarDocumento() {
     }
 
 
-    let imagenOriginal = null;
-    let imagenDeteccion = null;
-    let gris = null;
-    let desenfoque = null;
-    let bordes = null;
-    let bordesCerrados = null;
-    let kernel = null;
-    let contornos = null;
-    let jerarquia = null;
-    let mejorContorno = null;
-
-
     try {
 
-        // -------------------------------------------------
-        // 1. CARGAR IMAGEN COMPLETA
-        // -------------------------------------------------
+        /* ==========================================
+           1. OBTENER IMAGEN
+        =========================================== */
 
-        imagenOriginal =
+        const imagenOriginal =
             cv.imread(canvas);
 
 
-        // -------------------------------------------------
-        // 2. REDUCIR SOLO PARA DETECCIÓN
-        // -------------------------------------------------
+        /* ==========================================
+           2. CREAR IMAGEN PARA DETECCIÓN
+           
+           Reducimos la imagen para que la detección
+           sea más rápida.
+        =========================================== */
 
-        const escalaMaxima =
-            1400;
+        const escalaMaxima = 1200;
 
         let factor = 1;
+
 
         if (
             imagenOriginal.cols >
@@ -207,13 +242,11 @@ function procesarDocumento() {
         }
 
 
-        imagenDeteccion =
+        const imagenDeteccion =
             new cv.Mat();
 
 
-        if (
-            factor < 1
-        ) {
+        if (factor < 1) {
 
             cv.resize(
 
@@ -222,22 +255,18 @@ function procesarDocumento() {
                 imagenDeteccion,
 
                 new cv.Size(
-
                     Math.round(
                         imagenOriginal.cols *
                         factor
                     ),
-
                     Math.round(
                         imagenOriginal.rows *
                         factor
                     )
-
                 ),
 
                 0,
                 0,
-
                 cv.INTER_AREA
 
             );
@@ -251,12 +280,13 @@ function procesarDocumento() {
         }
 
 
-        // -------------------------------------------------
-        // 3. ESCALA DE GRISES
-        // -------------------------------------------------
+        /* ==========================================
+           3. ESCALA DE GRISES
+        =========================================== */
 
-        gris =
+        const gris =
             new cv.Mat();
+
 
         cv.cvtColor(
 
@@ -269,12 +299,13 @@ function procesarDocumento() {
         );
 
 
-        // -------------------------------------------------
-        // 4. SUAVIZAR
-        // -------------------------------------------------
+        /* ==========================================
+           4. REDUCIR RUIDO
+        =========================================== */
 
-        desenfoque =
+        const desenfoque =
             new cv.Mat();
+
 
         cv.GaussianBlur(
 
@@ -282,22 +313,20 @@ function procesarDocumento() {
 
             desenfoque,
 
-            new cv.Size(
-                5,
-                5
-            ),
+            new cv.Size(5, 5),
 
             0
 
         );
 
 
-        // -------------------------------------------------
-        // 5. DETECTAR BORDES
-        // -------------------------------------------------
+        /* ==========================================
+           5. DETECTAR BORDES
+        =========================================== */
 
-        bordes =
+        const bordes =
             new cv.Mat();
+
 
         cv.Canny(
 
@@ -305,27 +334,28 @@ function procesarDocumento() {
 
             bordes,
 
-            30,
-            100
+            50,
+            150
 
         );
 
 
-        // -------------------------------------------------
-        // 6. CERRAR PEQUEÑOS HUECOS
-        // -------------------------------------------------
+        /* ==========================================
+           6. CERRAR PEQUEÑOS HUECOS
+           
+           Esto ayuda cuando los bordes del papel
+           no están completamente definidos.
+        =========================================== */
 
-        kernel =
+        const kernel =
             cv.Mat.ones(
-
-                7,
-                7,
+                5,
+                5,
                 cv.CV_8U
-
             );
 
 
-        bordesCerrados =
+        const bordesCerrados =
             new cv.Mat();
 
 
@@ -342,14 +372,15 @@ function procesarDocumento() {
         );
 
 
-        // -------------------------------------------------
-        // 7. BUSCAR CONTORNOS
-        // -------------------------------------------------
+        /* ==========================================
+           7. BUSCAR CONTORNOS
+        =========================================== */
 
-        contornos =
+        const contornos =
             new cv.MatVector();
 
-        jerarquia =
+
+        const jerarquia =
             new cv.Mat();
 
 
@@ -361,23 +392,20 @@ function procesarDocumento() {
 
             jerarquia,
 
-            cv.RETR_LIST,
+            cv.RETR_EXTERNAL,
 
             cv.CHAIN_APPROX_SIMPLE
 
         );
 
 
-        // -------------------------------------------------
-        // 8. BUSCAR EL MEJOR RECTÁNGULO
-        // -------------------------------------------------
+        /* ==========================================
+           8. BUSCAR EL MEJOR CUADRILÁTERO
+        =========================================== */
 
-        let mejorArea =
-            0;
+        let mejorContorno = null;
 
-        const areaImagen =
-            imagenDeteccion.cols *
-            imagenDeteccion.rows;
+        let mejorArea = 0;
 
 
         for (
@@ -397,19 +425,17 @@ function procesarDocumento() {
 
 
             /*
-             * ANTES:
-             *
-             * area mínima = 15%
-             *
-             * AHORA:
-             *
-             * permitimos documentos
-             * mucho más pequeños.
+             * Ignorar objetos pequeños.
              */
+
+            const areaImagen =
+                imagenDeteccion.cols *
+                imagenDeteccion.rows;
+
 
             if (
                 area <
-                areaImagen * 0.03
+                areaImagen * 0.3
             ) {
 
                 contorno.delete();
@@ -421,28 +447,10 @@ function procesarDocumento() {
 
             const perimetro =
                 cv.arcLength(
-
                     contorno,
-
                     true
-
                 );
 
-
-            if (
-                perimetro <= 0
-            ) {
-
-                contorno.delete();
-
-                continue;
-
-            }
-
-
-            // ---------------------------------------------
-            // APROXIMACIÓN MÁS TOLERANTE
-            // ---------------------------------------------
 
             const aproximado =
                 new cv.Mat();
@@ -454,7 +462,7 @@ function procesarDocumento() {
 
                 aproximado,
 
-                0.035 *
+                0.02 *
                 perimetro,
 
                 true
@@ -462,18 +470,17 @@ function procesarDocumento() {
             );
 
 
-            // ---------------------------------------------
-            // SI TIENE 4 PUNTOS
-            // ---------------------------------------------
+            /*
+             * Nos interesa un polígono
+             * de exactamente 4 puntos.
+             */
 
             if (
-                aproximado.rows === 4
+                aproximado.rows === 4 &&
+                cv.isContourConvex(
+                    aproximado
+                )
             ) {
-
-                /*
-                 * Ya no exigimos aquí que
-                 * sea perfectamente convexo.
-                 */
 
                 if (
                     area >
@@ -492,7 +499,6 @@ function procesarDocumento() {
                     mejorContorno =
                         aproximado;
 
-
                     mejorArea =
                         area;
 
@@ -504,116 +510,7 @@ function procesarDocumento() {
 
             } else {
 
-                /*
-                 * Si no tiene exactamente
-                 * 4 puntos, intentamos
-                 * encontrar un rectángulo
-                 * mediante boundingRect.
-                 */
-
                 aproximado.delete();
-
-
-                const rect =
-                    cv.boundingRect(
-                        contorno
-                    );
-
-
-                const areaRectangulo =
-                    rect.width *
-                    rect.height;
-
-
-                /*
-                 * El rectángulo debe ocupar
-                 * una parte razonable de la
-                 * imagen.
-                 */
-
-                if (
-                    areaRectangulo >
-                    areaImagen * 0.08
-                ) {
-
-                    /*
-                     * Calculamos qué tan
-                     * rectangular es.
-                     */
-
-                    const porcentaje =
-                        area /
-                        areaRectangulo;
-
-
-                    /*
-                     * Aceptamos rectángulos
-                     * con bastante margen.
-                     */
-
-                    if (
-                        porcentaje >
-                        0.45 &&
-                        areaRectangulo >
-                        mejorArea
-                    ) {
-
-                        const puntosRect =
-                            new cv.Mat(
-                                4,
-                                1,
-                                cv.CV_32SC2
-                            );
-
-
-                        puntosRect.data32S[0] =
-                            rect.x;
-
-                        puntosRect.data32S[1] =
-                            rect.y;
-
-                        puntosRect.data32S[2] =
-                            rect.x +
-                            rect.width;
-
-                        puntosRect.data32S[3] =
-                            rect.y;
-
-                        puntosRect.data32S[4] =
-                            rect.x +
-                            rect.width;
-
-                        puntosRect.data32S[5] =
-                            rect.y +
-                            rect.height;
-
-                        puntosRect.data32S[6] =
-                            rect.x;
-
-                        puntosRect.data32S[7] =
-                            rect.y +
-                            rect.height;
-
-
-                        if (
-                            mejorContorno
-                        ) {
-
-                            mejorContorno.delete();
-
-                        }
-
-
-                        mejorContorno =
-                            puntosRect;
-
-
-                        mejorArea =
-                            areaRectangulo;
-
-                    }
-
-                }
 
             }
 
@@ -623,272 +520,247 @@ function procesarDocumento() {
         }
 
 
-        // =================================================
-        // 9. SI ENCONTRÓ DOCUMENTO
-        // =================================================
+        /* ==========================================
+           9. SI NO ENCONTRAMOS EL DOCUMENTO
+        =========================================== */
 
-        if (
-            mejorContorno
-        ) {
+        if (!mejorContorno) {
 
-            const puntos =
-                obtenerPuntosOrdenados(
-                    mejorContorno
-                );
+            imagenOriginal.delete();
+            imagenDeteccion.delete();
+            gris.delete();
+            desenfoque.delete();
+            bordes.delete();
+            bordesCerrados.delete();
+            kernel.delete();
+            contornos.delete();
+            jerarquia.delete();
 
-
-            // ---------------------------------------------
-            // Convertir coordenadas
-            // ---------------------------------------------
-
-            for (
-                let i = 0;
-                i < puntos.length;
-                i++
-            ) {
-
-                puntos[i].x /=
-                    factor;
-
-                puntos[i].y /=
-                    factor;
-
-            }
-
-
-            const dimensiones =
-                obtenerDimensionesDocumento();
-
-
-            // ---------------------------------------------
-            // PUNTOS ORIGEN
-            // ---------------------------------------------
-
-            const puntosOrigen =
-                cv.matFromArray(
-
-                    4,
-                    1,
-
-                    cv.CV_32FC2,
-
-                    [
-
-                        puntos[0].x,
-                        puntos[0].y,
-
-                        puntos[1].x,
-                        puntos[1].y,
-
-                        puntos[2].x,
-                        puntos[2].y,
-
-                        puntos[3].x,
-                        puntos[3].y
-
-                    ]
-
-                );
-
-
-            // ---------------------------------------------
-            // PUNTOS DESTINO
-            // ---------------------------------------------
-
-            const puntosDestino =
-                cv.matFromArray(
-
-                    4,
-                    1,
-
-                    cv.CV_32FC2,
-
-                    [
-
-                        0,
-                        0,
-
-                        dimensiones.ancho,
-                        0,
-
-                        dimensiones.ancho,
-                        dimensiones.alto,
-
-                        0,
-                        dimensiones.alto
-
-                    ]
-
-                );
-
-
-            // ---------------------------------------------
-            // TRANSFORMACIÓN
-            // ---------------------------------------------
-
-            const matrizPerspectiva =
-                cv.getPerspectiveTransform(
-
-                    puntosOrigen,
-
-                    puntosDestino
-
-                );
-
-
-            const documentoEnderezado =
-                new cv.Mat();
-
-
-            cv.warpPerspective(
-
-                imagenOriginal,
-
-                documentoEnderezado,
-
-                matrizPerspectiva,
-
-                new cv.Size(
-
-                    dimensiones.ancho,
-
-                    dimensiones.alto
-
-                ),
-
-                cv.INTER_CUBIC,
-
-                cv.BORDER_REPLICATE
-
+            alert(
+                "No pude detectar las 4 esquinas del documento.\n\nAsegúrate de que el papel esté completamente visible y tenga suficiente contraste con el fondo."
             );
 
-
-            // ---------------------------------------------
-            // MOSTRAR RESULTADO
-            // ---------------------------------------------
-
-            canvasResultado.width =
-                dimensiones.ancho;
-
-            canvasResultado.height =
-                dimensiones.alto;
-
-
-            cv.imshow(
-
-                canvasResultado,
-
-                documentoEnderezado
-
-            );
-
-
-            mejorarDocumento();
-
-
-            // ---------------------------------------------
-            // LIMPIEZA
-            // ---------------------------------------------
-
-            puntosOrigen.delete();
-            puntosDestino.delete();
-            matrizPerspectiva.delete();
-            documentoEnderezado.delete();
-
-
-        } else {
-
-            // =================================================
-            // 10. MODO DE RESPALDO
-            // =================================================
-            //
-            // SI NO DETECTAMOS EL DOCUMENTO:
-            //
-            // NO MOSTRAMOS ERROR.
-            //
-            // UTILIZAMOS TODA LA IMAGEN.
-            // =================================================
-
-
-            console.log(
-                "No se detectó un contorno confiable. Se utilizará la imagen completa."
-            );
-
-
-            const dimensiones =
-                obtenerDimensionesDocumento();
-
-
-            canvasResultado.width =
-                dimensiones.ancho;
-
-            canvasResultado.height =
-                dimensiones.alto;
-
-
-            const contexto =
-                canvasResultado.getContext(
-                    "2d"
-                );
-
-
-            contexto.drawImage(
-
-                canvas,
-
-                0,
-                0,
-
-                canvas.width,
-                canvas.height,
-
-                0,
-                0,
-
-                dimensiones.ancho,
-                dimensiones.alto
-
-            );
-
-
-            mejorarDocumento();
+            return;
 
         }
 
 
-        // =================================================
-        // LIMPIEZA OPENCV
-        // =================================================
+        /* ==========================================
+           10. OBTENER LAS 4 ESQUINAS
+        =========================================== */
 
-        if (imagenOriginal)
-            imagenOriginal.delete();
+        const puntos =
+            obtenerPuntosOrdenados(
+                mejorContorno
+            );
 
-        if (imagenDeteccion)
-            imagenDeteccion.delete();
 
-        if (gris)
-            gris.delete();
+        /* ==========================================
+           11. CONVERTIR LAS COORDENADAS
+           
+           La detección se hizo sobre una imagen
+           reducida. Ahora volvemos a las
+           coordenadas originales.
+        =========================================== */
 
-        if (desenfoque)
-            desenfoque.delete();
+        for (
+            let i = 0;
+            i < puntos.length;
+            i++
+        ) {
 
-        if (bordes)
-            bordes.delete();
+            puntos[i].x /=
+                factor;
 
-        if (bordesCerrados)
-            bordesCerrados.delete();
+            puntos[i].y /=
+                factor;
 
-        if (kernel)
-            kernel.delete();
+        }
 
-        if (contornos)
-            contornos.delete();
 
-        if (jerarquia)
-            jerarquia.delete();
+        /* ==========================================
+           12. DETERMINAR TAMAÑO FINAL
+        =========================================== */
 
-        if (mejorContorno)
-            mejorContorno.delete();
+        const dimensiones =
+            obtenerDimensionesDocumento();
+
+
+        /* ==========================================
+           13. CREAR MATRICES DE PERSPECTIVA
+        =========================================== */
+
+        const puntosOrigen =
+            cv.matFromArray(
+
+                4,
+                1,
+                cv.CV_32FC2,
+
+                [
+
+                    puntos[0].x,
+                    puntos[0].y,
+
+                    puntos[1].x,
+                    puntos[1].y,
+
+                    puntos[2].x,
+                    puntos[2].y,
+
+                    puntos[3].x,
+                    puntos[3].y
+
+                ]
+
+            );
+
+
+        const puntosDestino =
+            cv.matFromArray(
+
+                4,
+                1,
+                cv.CV_32FC2,
+
+                [
+
+                    0,
+                    0,
+
+                    dimensiones.ancho,
+                    0,
+
+                    dimensiones.ancho,
+                    dimensiones.alto,
+
+                    0,
+                    dimensiones.alto
+
+                ]
+
+            );
+
+
+        /* ==========================================
+           14. TRANSFORMACIÓN DE PERSPECTIVA
+        =========================================== */
+
+        const matrizPerspectiva =
+            cv.getPerspectiveTransform(
+
+                puntosOrigen,
+
+                puntosDestino
+
+            );
+
+
+        const documentoEnderezado =
+            new cv.Mat();
+
+
+        cv.warpPerspective(
+
+            imagenOriginal,
+
+            documentoEnderezado,
+
+            matrizPerspectiva,
+
+            new cv.Size(
+
+                dimensiones.ancho,
+
+                dimensiones.alto
+
+            ),
+
+            cv.INTER_CUBIC,
+
+            cv.BORDER_REPLICATE
+
+        );
+
+
+        /* ==========================================
+           15. PASAR RESULTADO A CANVAS
+        =========================================== */
+
+        const canvasTemporal =
+            document.createElement(
+                "canvas"
+            );
+
+
+        canvasTemporal.width =
+            dimensiones.ancho;
+
+        canvasTemporal.height =
+            dimensiones.alto;
+
+
+        cv.imshow(
+
+            canvasTemporal,
+
+            documentoEnderezado
+
+        );
+
+
+        /* ==========================================
+           16. COPIAR AL CANVAS FINAL
+        =========================================== */
+
+        canvasResultado.width =
+            dimensiones.ancho;
+
+        canvasResultado.height =
+            dimensiones.alto;
+
+
+        const contexto =
+            canvasResultado.getContext(
+                "2d"
+            );
+
+
+        contexto.drawImage(
+
+            canvasTemporal,
+
+            0,
+            0
+
+        );
+
+
+        /* ==========================================
+           17. MEJORAR DOCUMENTO
+        =========================================== */
+
+        mejorarDocumento();
+
+
+        /* ==========================================
+           18. LIMPIAR MEMORIA OPENCV
+        =========================================== */
+
+        imagenOriginal.delete();
+        imagenDeteccion.delete();
+        gris.delete();
+        desenfoque.delete();
+        bordes.delete();
+        bordesCerrados.delete();
+        kernel.delete();
+        contornos.delete();
+        jerarquia.delete();
+        mejorContorno.delete();
+        puntosOrigen.delete();
+        puntosDestino.delete();
+        matrizPerspectiva.delete();
+        documentoEnderezado.delete();
 
 
     } catch (error) {
@@ -899,75 +771,19 @@ function procesarDocumento() {
         );
 
 
-        /*
-         * Incluso si OpenCV falla,
-         * mostramos la fotografía completa.
-         */
-
-        try {
-
-            const dimensiones =
-                obtenerDimensionesDocumento();
-
-
-            canvasResultado.width =
-                dimensiones.ancho;
-
-            canvasResultado.height =
-                dimensiones.alto;
-
-
-            const contexto =
-                canvasResultado.getContext(
-                    "2d"
-                );
-
-
-            contexto.drawImage(
-
-                canvas,
-
-                0,
-                0,
-
-                canvas.width,
-                canvas.height,
-
-                0,
-                0,
-
-                dimensiones.ancho,
-                dimensiones.alto
-
-            );
-
-
-            mejorarDocumento();
-
-
-        } catch (
-            errorRespaldo
-        ) {
-
-            console.error(
-                "Error en modo de respaldo:",
-                errorRespaldo
-            );
-
-            alert(
-                "No fue posible procesar la fotografía."
-            );
-
-        }
+        alert(
+            "Ocurrió un error al detectar el documento."
+        );
 
     }
 
 }
 
 
-// =====================================================
-// ORDENAR ESQUINAS
-// =====================================================
+
+/* ==========================================
+   ORDENAR LAS 4 ESQUINAS
+========================================== */
 
 function obtenerPuntosOrdenados(
     contorno
@@ -985,7 +801,6 @@ function obtenerPuntosOrdenados(
         const punto =
             contorno.data32S;
 
-
         puntos.push({
 
             x:
@@ -999,17 +814,28 @@ function obtenerPuntosOrdenados(
     }
 
 
-    let superiorIzquierda =
-        puntos[0];
+    /*
+     * Calculamos:
+     *
+     * suma = x + y
+     * diferencia = x - y
+     *
+     * Esto permite identificar:
+     *
+     * 0 = superior izquierda
+     * 1 = superior derecha
+     * 2 = inferior derecha
+     * 3 = inferior izquierda
+     */
 
-    let superiorDerecha =
-        puntos[0];
 
-    let inferiorDerecha =
-        puntos[0];
+    let superiorIzquierda = puntos[0];
 
-    let inferiorIzquierda =
-        puntos[0];
+    let superiorDerecha = puntos[0];
+
+    let inferiorDerecha = puntos[0];
+
+    let inferiorIzquierda = puntos[0];
 
 
     let menorSuma =
@@ -1039,8 +865,6 @@ function obtenerPuntosOrdenados(
             punto.y;
 
 
-        // Superior izquierda
-
         if (
             suma <
             menorSuma
@@ -1054,8 +878,6 @@ function obtenerPuntosOrdenados(
 
         }
 
-
-        // Inferior derecha
 
         if (
             suma >
@@ -1071,8 +893,6 @@ function obtenerPuntosOrdenados(
         }
 
 
-        // Superior derecha
-
         if (
             diferencia >
             mayorDiferencia
@@ -1086,8 +906,6 @@ function obtenerPuntosOrdenados(
 
         }
 
-
-        // Inferior izquierda
 
         if (
             diferencia <
@@ -1120,9 +938,10 @@ function obtenerPuntosOrdenados(
 }
 
 
-// =====================================================
-// TAMAÑO DEL DOCUMENTO
-// =====================================================
+
+/* ==========================================
+   DIMENSIONES DEL DOCUMENTO
+========================================== */
 
 function obtenerDimensionesDocumento() {
 
@@ -1130,9 +949,14 @@ function obtenerDimensionesDocumento() {
         tamanoHoja.value;
 
 
-    const ancho =
-        1200;
+    /*
+     * Usamos 1200 píxeles de ancho.
+     *
+     * La altura depende del tamaño
+     * seleccionado.
+     */
 
+    const ancho = 1200;
 
     let alto;
 
@@ -1141,40 +965,43 @@ function obtenerDimensionesDocumento() {
         tipo === "carta"
     ) {
 
+        /*
+         * Carta:
+         * 8.5 × 11
+         */
+
         alto =
             Math.round(
-
                 ancho *
                 (11 / 8.5)
-
             );
 
-    }
-
-    else if (
+    } else if (
         tipo === "a4"
     ) {
 
+        /*
+         * A4:
+         * 210 × 297
+         */
+
         alto =
             Math.round(
-
                 ancho *
                 (297 / 210)
-
             );
 
-    }
+    } else {
 
-    else {
-
-        // Oficio
+        /*
+         * Oficio:
+         * 8.5 × 14
+         */
 
         alto =
             Math.round(
-
                 ancho *
-                (14 / 8.5)
-
+                (13 / 8.5)
             );
 
     }
@@ -1182,20 +1009,19 @@ function obtenerDimensionesDocumento() {
 
     return {
 
-        ancho:
-            ancho,
+        ancho: ancho,
 
-        alto:
-            alto
+        alto: alto
 
     };
 
 }
 
 
-// =====================================================
-// MEJORAR DOCUMENTO
-// =====================================================
+
+/* ==========================================
+   MEJORAR DOCUMENTO
+========================================== */
 
 function mejorarDocumento() {
 
@@ -1217,7 +1043,6 @@ function mejorarDocumento() {
 
             0,
             0,
-
             ancho,
             alto
 
@@ -1227,6 +1052,10 @@ function mejorarDocumento() {
     const datos =
         imagen.data;
 
+
+    /* ==========================================
+       ESCALA DE GRISES
+    =========================================== */
 
     for (
         let i = 0;
@@ -1244,8 +1073,6 @@ function mejorarDocumento() {
             datos[i + 2];
 
 
-        // Convertir a gris
-
         let gris =
 
             (0.299 * rojo) +
@@ -1255,27 +1082,31 @@ function mejorarDocumento() {
             (0.114 * azul);
 
 
-        // Contraste moderado
+        /* ==========================================
+           CONTRASTE
+        =========================================== */
 
         const contraste =
             1.12;
 
 
         gris =
-
             (
                 (gris - 128) *
                 contraste
             ) + 128;
 
 
-        // Iluminar ligeramente
+        /* ==========================================
+           ACLARAR PAPEL
+        =========================================== */
 
-        gris +=
-            12;
+        gris += 12;
 
 
-        // Limitar
+        /* ==========================================
+           LIMITAR
+        =========================================== */
 
         gris =
             Math.max(
@@ -1305,6 +1136,10 @@ function mejorarDocumento() {
     }
 
 
+    /* ==========================================
+       MOSTRAR RESULTADO
+    =========================================== */
+
     contexto.putImageData(
 
         imagen,
@@ -1317,9 +1152,10 @@ function mejorarDocumento() {
 }
 
 
-// =====================================================
-// ZOOM
-// =====================================================
+
+/* ==========================================
+   CONFIGURAR ZOOM
+========================================== */
 
 function configurarZoom() {
 
@@ -1354,27 +1190,22 @@ function configurarZoom() {
     const zoomMin =
         capacidades.zoom.min;
 
-
     const zoomMax =
         capacidades.zoom.max;
 
-
     const zoomPaso =
         capacidades.zoom.step ||
-        0.1;
+        1;
 
 
     zoomCamara.min =
         zoomMin;
 
-
     zoomCamara.max =
         zoomMax;
 
-
     zoomCamara.step =
         zoomPaso;
-
 
     zoomCamara.value =
         zoomMin;
@@ -1392,22 +1223,14 @@ function configurarZoom() {
 }
 
 
-// =====================================================
-// CAMBIAR ZOOM
-// =====================================================
+
+/* ==========================================
+   CONTROL DE ZOOM
+========================================== */
 
 zoomCamara.addEventListener(
     "input",
     async () => {
-
-        if (
-            !streamCamara
-        ) {
-
-            return;
-
-        }
-
 
         const track =
             streamCamara
@@ -1427,8 +1250,7 @@ zoomCamara.addEventListener(
                 advanced: [
 
                     {
-                        zoom:
-                            zoom
+                        zoom: zoom
                     }
 
                 ]
@@ -1444,14 +1266,672 @@ zoomCamara.addEventListener(
         } catch (error) {
 
             console.error(
-
                 "No se pudo aplicar el zoom:",
-
                 error
-
             );
 
         }
 
     }
 );
+
+/* ==========================================
+   DETECCIÓN DE DOCUMENTO EN VIVO
+========================================== */
+
+function iniciarDeteccionEnVivo() {
+
+    if (deteccionActiva) {
+        return;
+    }
+
+    deteccionActiva = true;
+
+    canvasDeteccion.width =
+        video.videoWidth;
+
+    canvasDeteccion.height =
+        video.videoHeight;
+
+    detectarDocumentoEnVivo();
+
+}
+
+
+/* ==========================================
+   DETECTAR DOCUMENTO EN TIEMPO REAL
+========================================== */
+
+function detectarDocumentoEnVivo() {
+
+    if (
+        !deteccionActiva ||
+        !video.videoWidth ||
+        !video.videoHeight
+    ) {
+
+        requestAnimationFrame(
+            detectarDocumentoEnVivo
+        );
+
+        return;
+
+    }
+
+
+    try {
+
+        /*
+         * Tomamos una versión pequeña
+         * de la cámara para que la detección
+         * sea rápida.
+         */
+
+        const anchoDeteccion = 800;
+
+        const factor =
+            anchoDeteccion /
+            video.videoWidth;
+
+        const altoDeteccion =
+            Math.round(
+                video.videoHeight *
+                factor
+            );
+
+
+        const canvasTemporal =
+            document.createElement(
+                "canvas"
+            );
+
+
+        canvasTemporal.width =
+            anchoDeteccion;
+
+        canvasTemporal.height =
+            altoDeteccion;
+
+
+        const contextoTemporal =
+            canvasTemporal.getContext(
+                "2d"
+            );
+
+
+        contextoTemporal.drawImage(
+
+            video,
+
+            0,
+            0,
+
+            video.videoWidth,
+            video.videoHeight,
+
+            0,
+            0,
+
+            anchoDeteccion,
+            altoDeteccion
+
+        );
+
+
+        /*
+         * Verificar OpenCV
+         */
+
+        if (
+            typeof cv === "undefined" ||
+            !cv.Mat
+        ) {
+
+            requestAnimationFrame(
+                detectarDocumentoEnVivo
+            );
+
+            return;
+
+        }
+
+
+        /* ==========================================
+           IMAGEN
+        =========================================== */
+
+        const imagen =
+            cv.imread(
+                canvasTemporal
+            );
+
+
+        /* ==========================================
+           ESCALA DE GRISES
+        =========================================== */
+
+        const gris =
+            new cv.Mat();
+
+
+        cv.cvtColor(
+
+            imagen,
+
+            gris,
+
+            cv.COLOR_RGBA2GRAY
+
+        );
+
+
+        /* ==========================================
+           REDUCIR RUIDO
+        =========================================== */
+
+        const desenfoque =
+            new cv.Mat();
+
+
+        cv.GaussianBlur(
+
+            gris,
+
+            desenfoque,
+
+            new cv.Size(
+                5,
+                5
+            ),
+
+            0
+
+        );
+
+
+        /* ==========================================
+           BORDES
+        =========================================== */
+
+        const bordes =
+            new cv.Mat();
+
+
+        cv.Canny(
+
+            desenfoque,
+
+            bordes,
+
+            50,
+            150
+
+        );
+
+
+        /* ==========================================
+           CERRAR HUECOS
+        =========================================== */
+
+        const kernel =
+            cv.Mat.ones(
+
+                5,
+                5,
+
+                cv.CV_8U
+
+            );
+
+
+        const bordesCerrados =
+            new cv.Mat();
+
+
+        cv.morphologyEx(
+
+            bordes,
+
+            bordesCerrados,
+
+            cv.MORPH_CLOSE,
+
+            kernel
+
+        );
+
+
+        /* ==========================================
+           CONTORNOS
+        =========================================== */
+
+        const contornos =
+            new cv.MatVector();
+
+
+        const jerarquia =
+            new cv.Mat();
+
+
+        cv.findContours(
+
+            bordesCerrados,
+
+            contornos,
+
+            jerarquia,
+
+            cv.RETR_EXTERNAL,
+
+            cv.CHAIN_APPROX_SIMPLE
+
+        );
+
+
+        let mejorContorno =
+            null;
+
+        let mejorArea =
+            0;
+
+
+        const areaImagen =
+            imagen.cols *
+            imagen.rows;
+
+
+        /* ==========================================
+           BUSCAR DOCUMENTO
+        =========================================== */
+
+        for (
+            let i = 0;
+            i < contornos.size();
+            i++
+        ) {
+
+            const contorno =
+                contornos.get(i);
+
+
+            const area =
+                cv.contourArea(
+                    contorno
+                );
+
+
+            /*
+             * Usamos el mismo criterio
+             * general que tu detección actual.
+             */
+
+            if (
+                area <
+                areaImagen * 0.30
+            ) {
+
+                contorno.delete();
+
+                continue;
+
+            }
+
+
+            const perimetro =
+                cv.arcLength(
+
+                    contorno,
+
+                    true
+
+                );
+
+
+            const aproximado =
+                new cv.Mat();
+
+
+            cv.approxPolyDP(
+
+                contorno,
+
+                aproximado,
+
+                0.02 *
+                perimetro,
+
+                true
+
+            );
+
+
+            /*
+             * EXACTAMENTE 4 ESQUINAS
+             */
+
+            if (
+
+                aproximado.rows === 4 &&
+
+                cv.isContourConvex(
+                    aproximado
+                )
+
+            ) {
+
+                if (
+                    area >
+                    mejorArea
+                ) {
+
+                    if (
+                        mejorContorno
+                    ) {
+
+                        mejorContorno.delete();
+
+                    }
+
+
+                    mejorContorno =
+                        aproximado;
+
+
+                    mejorArea =
+                        area;
+
+                } else {
+
+                    aproximado.delete();
+
+                }
+
+            } else {
+
+                aproximado.delete();
+
+            }
+
+
+            contorno.delete();
+
+        }
+
+
+        /* ==========================================
+           LIMPIAR CANVAS DE LÍNEAS
+        =========================================== */
+
+        contextoDeteccion.clearRect(
+
+            0,
+            0,
+
+            canvasDeteccion.width,
+            canvasDeteccion.height
+
+        );
+
+
+        /* ==========================================
+           SI ENCONTRAMOS DOCUMENTO
+        =========================================== */
+
+        if (
+            mejorContorno
+        ) {
+
+            const puntos =
+                obtenerPuntosOrdenados(
+
+                    mejorContorno
+
+                );
+
+
+            /*
+             * Convertir las coordenadas
+             * pequeñas a las coordenadas
+             * reales del video.
+             */
+
+            const factorX =
+                video.videoWidth /
+                anchoDeteccion;
+
+
+            const factorY =
+                video.videoHeight /
+                altoDeteccion;
+
+
+            for (
+                let i = 0;
+                i < puntos.length;
+                i++
+            ) {
+
+                puntos[i].x *=
+                    factorX;
+
+                puntos[i].y *=
+                    factorY;
+
+            }
+
+
+            dibujarEsquinasDocumento(
+                puntos
+            );
+
+        }
+
+
+        /* ==========================================
+           LIMPIAR OPENCV
+        =========================================== */
+
+        imagen.delete();
+
+        gris.delete();
+
+        desenfoque.delete();
+
+        bordes.delete();
+
+        kernel.delete();
+
+        bordesCerrados.delete();
+
+        contornos.delete();
+
+        jerarquia.delete();
+
+
+        if (
+            mejorContorno
+        ) {
+
+            mejorContorno.delete();
+
+        }
+
+
+    } catch (error) {
+
+        console.error(
+            "Error en detección en vivo:",
+            error
+        );
+
+    }
+
+
+    /*
+     * Volver a ejecutar.
+     */
+
+    requestAnimationFrame(
+        detectarDocumentoEnVivo
+    );
+
+}
+
+
+/* ==========================================
+   DIBUJAR LÍNEAS VERDES
+========================================== */
+
+function dibujarEsquinasDocumento(
+    puntos
+) {
+
+    if (
+        puntos.length !== 4
+    ) {
+
+        return;
+
+    }
+
+
+    const ctx =
+        contextoDeteccion;
+
+
+    /*
+     * Limpiar antes de dibujar.
+     */
+
+    ctx.clearRect(
+
+        0,
+        0,
+
+        canvasDeteccion.width,
+        canvasDeteccion.height
+
+    );
+
+
+    /*
+     * Línea verde.
+     */
+
+    ctx.strokeStyle =
+        "#00ff00";
+
+
+    ctx.lineWidth =
+        6;
+
+
+    ctx.lineJoin =
+        "round";
+
+
+    ctx.lineCap =
+        "round";
+
+
+    /*
+     * Un pequeño resplandor
+     * para que se vea sobre
+     * cualquier fondo.
+     */
+
+    ctx.shadowColor =
+        "rgba(0, 255, 0, 0.8)";
+
+
+    ctx.shadowBlur =
+        8;
+
+
+    /* ==========================================
+       DIBUJAR DOCUMENTO
+    =========================================== */
+
+    ctx.beginPath();
+
+
+    ctx.moveTo(
+
+        puntos[0].x,
+        puntos[0].y
+
+    );
+
+
+    ctx.lineTo(
+
+        puntos[1].x,
+        puntos[1].y
+
+    );
+
+
+    ctx.lineTo(
+
+        puntos[2].x,
+        puntos[2].y
+
+    );
+
+
+    ctx.lineTo(
+
+        puntos[3].x,
+        puntos[3].y
+
+    );
+
+
+    ctx.closePath();
+
+
+    ctx.stroke();
+
+
+    /* ==========================================
+       DIBUJAR CÍRCULOS EN LAS ESQUINAS
+    =========================================== */
+
+    ctx.fillStyle =
+        "#00ff00";
+
+
+    for (
+        const punto of puntos
+    ) {
+
+        ctx.beginPath();
+
+
+        ctx.arc(
+
+            punto.x,
+            punto.y,
+
+            9,
+
+            0,
+            Math.PI * 2
+
+        );
+
+
+        ctx.fill();
+
+    }
+
+
+    /*
+     * Quitar sombra después
+     * de terminar.
+     */
+
+    ctx.shadowBlur =
+        0;
+
+}
