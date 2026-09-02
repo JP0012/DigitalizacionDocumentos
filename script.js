@@ -987,7 +987,7 @@ function obtenerDimensionesDocumento() {
         alto =
             Math.round(
                 ancho *
-                (14 / 8.5)
+                (13 / 8.5)
             );
 
     }
@@ -1181,7 +1181,7 @@ function configurarZoom() {
 
     const zoomPaso =
         capacidades.zoom.step ||
-        0.1;
+        1;
 
 
     zoomCamara.min =
