@@ -254,3 +254,25 @@ button {
     opacity: 0.9;
 
 }
+
+#controlZoom {
+    margin-top: 15px;
+    padding: 10px;
+}
+
+#controlZoom label {
+    display: inline-block;
+    margin-right: 10px;
+}
+
+#zoomCamara {
+    width: 250px;
+    vertical-align: middle;
+}
+
+#valorZoom {
+    display: inline-block;
+    min-width: 45px;
+    font-weight: bold;
+    margin-left: 8px;
+}

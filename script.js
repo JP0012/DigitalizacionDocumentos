@@ -13,6 +13,10 @@ const tamanoHoja = document.getElementById("tamanoHoja");
 
 const guiaDocumento = document.getElementById("guiaDocumento");
 
+const controlZoom = document.getElementById("controlZoom");
+const zoomCamara = document.getElementById("zoomCamara");
+const valorZoom = document.getElementById("valorZoom");
+
 
 let streamCamara;
 
@@ -43,6 +47,7 @@ btnAbrirCamara.addEventListener("click", async () => {
 
         video.srcObject = streamCamara;
 
+        configurarZoom();
 
         contenedorCamara.classList.remove("oculto");
 
@@ -361,4 +366,56 @@ contexto.putImageData(
 );
 
 }
+
+function configurarZoom() {
+
+    const track = streamCamara.getVideoTracks()[0];
+
+    const capacidades = track.getCapabilities();
+
+    console.log("Capacidades de la cámara:", capacidades);
+
+    if (!capacidades.zoom) {
+        console.log("Esta cámara no permite zoom mediante el navegador.");
+        return;
+    }
+
+    const zoomMin = capacidades.zoom.min;
+    const zoomMax = capacidades.zoom.max;
+    const zoomPaso = capacidades.zoom.step || 0.1;
+
+    zoomCamara.min = zoomMin;
+    zoomCamara.max = zoomMax;
+    zoomCamara.step = zoomPaso;
+    zoomCamara.value = zoomMin;
+
+    valorZoom.textContent = zoomMin.toFixed(1) + "x";
+
+    controlZoom.classList.remove("oculto");
+}
+
+zoomCamara.addEventListener("input", async () => {
+
+    const track = streamCamara.getVideoTracks()[0];
+
+    const zoom = parseFloat(zoomCamara.value);
+
+    try {
+
+        await track.applyConstraints({
+            advanced: [
+                {
+                    zoom: zoom
+                }
+            ]
+        });
+
+        valorZoom.textContent = zoom.toFixed(1) + "x";
+
+    } catch (error) {
+
+        console.error("No se pudo aplicar el zoom:", error);
+
+    }
+});
 
