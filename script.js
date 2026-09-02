@@ -236,6 +236,62 @@ function procesarDocumento() {
 
     const datos = imagen.data;
 
+    // ==========================================
+// ESCALA DE GRISES + MEJORA DEL DOCUMENTO
+// ==========================================
+
+for (let i = 0; i < datos.length; i += 4) {
+
+    const rojo = datos[i];
+    const verde = datos[i + 1];
+    const azul = datos[i + 2];
+
+    // Escala de grises
+    let gris =
+        (0.299 * rojo) +
+        (0.587 * verde) +
+        (0.114 * azul);
+
+    /*
+     * CONTRASTE SUAVE
+     *
+     * 1.00 = sin contraste
+     * 1.10 = muy suave
+     * 1.20 = moderado
+     */
+
+    const contraste = 1.12;
+
+    gris = ((gris - 128) * contraste) + 128;
+
+
+    // ==========================================
+    // ACLARAR EL PAPEL
+    // ==========================================
+
+    gris += 12;
+
+
+    // ==========================================
+    // LIMITAR VALORES
+    // ==========================================
+
+    gris = Math.max(0, Math.min(255, gris));
+
+
+    datos[i] = gris;
+    datos[i + 1] = gris;
+    datos[i + 2] = gris;
+    datos[i + 3] = 255;
+}
+
+
+// ==========================================
+// MOSTRAR RESULTADO
+// ==========================================
+
+contexto.putImageData(imagen, 0, 0);
+
 
 // ==========================================
 // 7. CONVERTIR A ESCALA DE GRISES
@@ -307,109 +363,3 @@ contexto.putImageData(
 
 }
 
-function calcularOtsu(grises) {
-
-    const histograma = new Array(256).fill(0);
-
-
-    // ==========================================
-    // CREAR HISTOGRAMA
-    // ==========================================
-
-    for (let i = 0; i < grises.length; i++) {
-
-        histograma[grises[i]]++;
-
-    }
-
-
-    const totalPixeles = grises.length;
-
-
-    // ==========================================
-    // SUMA TOTAL
-    // ==========================================
-
-    let sumaTotal = 0;
-
-    for (let i = 0; i < 256; i++) {
-
-        sumaTotal += i * histograma[i];
-
-    }
-
-
-    let sumaFondo = 0;
-
-    let pesoFondo = 0;
-
-    let pesoObjeto = 0;
-
-    let varianzaMaxima = 0;
-
-    let mejorUmbral = 128;
-
-
-    // ==========================================
-    // BUSCAR EL MEJOR UMBRAL
-    // ==========================================
-
-    for (let umbral = 0; umbral < 256; umbral++) {
-
-        pesoFondo += histograma[umbral];
-
-
-        if (pesoFondo === 0) {
-            continue;
-        }
-
-
-        pesoObjeto =
-            totalPixeles - pesoFondo;
-
-
-        if (pesoObjeto === 0) {
-            break;
-        }
-
-
-        sumaFondo +=
-            umbral * histograma[umbral];
-
-
-        const mediaFondo =
-            sumaFondo / pesoFondo;
-
-
-        const mediaObjeto =
-            (sumaTotal - sumaFondo) /
-            pesoObjeto;
-
-
-        const diferencia =
-            mediaFondo - mediaObjeto;
-
-
-        const varianzaEntreClases =
-            pesoFondo *
-            pesoObjeto *
-            diferencia *
-            diferencia;
-
-
-        if (varianzaEntreClases > varianzaMaxima) {
-
-            varianzaMaxima =
-                varianzaEntreClases;
-
-            mejorUmbral =
-                umbral;
-
-        }
-
-    }
-
-
-    return mejorUmbral;
-
-}
