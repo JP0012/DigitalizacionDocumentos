@@ -31,7 +31,17 @@ const zoomCamara =
 const valorZoom =
     document.getElementById("valorZoom");
 
+const canvasDeteccion =
+    document.getElementById("canvasDeteccion");
+
+const contextoDeteccion =
+    canvasDeteccion.getContext("2d");
+
 let streamCamara;
+
+let deteccionActiva = false;
+
+let ultimaDeteccion = 0;
 
 
 /* ==========================================
@@ -67,6 +77,16 @@ btnAbrirCamara.addEventListener("click", async () => {
 
 
         video.srcObject = streamCamara;
+
+        video.addEventListener(
+    "loadedmetadata",
+    () => {
+
+        iniciarDeteccionEnVivo();
+
+    },
+    { once: true }
+);
 
 
 
@@ -1261,3 +1281,695 @@ zoomCamara.addEventListener(
     }
 );
 
+/* ==========================================
+   INICIAR DETECCIÓN EN VIVO
+========================================== */
+
+function iniciarDeteccionEnVivo() {
+
+    if (deteccionActiva) {
+
+        return;
+
+    }
+
+    deteccionActiva = true;
+
+
+    /*
+     * Usamos las dimensiones reales
+     * del video para que las líneas
+     * coincidan con la cámara.
+     */
+
+    canvasDeteccion.width =
+        video.videoWidth;
+
+    canvasDeteccion.height =
+        video.videoHeight;
+
+
+    detectarDocumentoEnVivo();
+
+}
+
+
+
+/* ==========================================
+   DETECCIÓN EN VIVO
+========================================== */
+
+function detectarDocumentoEnVivo(timestamp) {
+
+    if (!deteccionActiva) {
+
+        return;
+
+    }
+
+
+    /*
+     * No analizamos cada frame.
+     *
+     * Analizamos aproximadamente
+     * 5 veces por segundo.
+     *
+     * Esto evita que la cámara
+     * se vuelva lenta.
+     */
+
+    if (
+        timestamp &&
+        timestamp - ultimaDeteccion < 200
+    ) {
+
+        requestAnimationFrame(
+            detectarDocumentoEnVivo
+        );
+
+        return;
+
+    }
+
+
+    ultimaDeteccion = timestamp || 0;
+
+
+    /*
+     * Si OpenCV todavía no terminó
+     * de cargar, seguimos intentando.
+     */
+
+    if (
+
+        typeof cv === "undefined" ||
+
+        !cv.Mat ||
+
+        !video.videoWidth ||
+
+        !video.videoHeight
+
+    ) {
+
+        requestAnimationFrame(
+            detectarDocumentoEnVivo
+        );
+
+        return;
+
+    }
+
+
+    try {
+
+        /* ==========================================
+           1. CREAR CANVAS PEQUEÑO
+        =========================================== */
+
+        const anchoAnalisis = 500;
+
+        const proporcion =
+            video.videoHeight /
+            video.videoWidth;
+
+
+        const altoAnalisis =
+            Math.round(
+
+                anchoAnalisis *
+                proporcion
+
+            );
+
+
+        const canvasTemporal =
+            document.createElement("canvas");
+
+
+        canvasTemporal.width =
+            anchoAnalisis;
+
+        canvasTemporal.height =
+            altoAnalisis;
+
+
+        const contextoTemporal =
+            canvasTemporal.getContext("2d");
+
+
+        contextoTemporal.drawImage(
+
+            video,
+
+            0,
+            0,
+
+            video.videoWidth,
+            video.videoHeight,
+
+            0,
+            0,
+
+            anchoAnalisis,
+            altoAnalisis
+
+        );
+
+
+        /* ==========================================
+           2. LEER IMAGEN CON OPENCV
+        =========================================== */
+
+        const imagen =
+            cv.imread(canvasTemporal);
+
+
+        const gris =
+            new cv.Mat();
+
+
+        cv.cvtColor(
+
+            imagen,
+
+            gris,
+
+            cv.COLOR_RGBA2GRAY
+
+        );
+
+
+        /* ==========================================
+           3. REDUCIR RUIDO
+        =========================================== */
+
+        const desenfoque =
+            new cv.Mat();
+
+
+        cv.GaussianBlur(
+
+            gris,
+
+            desenfoque,
+
+            new cv.Size(5, 5),
+
+            0
+
+        );
+
+
+        /* ==========================================
+           4. DETECTAR BORDES
+        =========================================== */
+
+        const bordes =
+            new cv.Mat();
+
+
+        cv.Canny(
+
+            desenfoque,
+
+            bordes,
+
+            50,
+            150
+
+        );
+
+
+        /* ==========================================
+           5. CERRAR PEQUEÑOS HUECOS
+        =========================================== */
+
+        const kernel =
+            cv.Mat.ones(
+
+                5,
+                5,
+
+                cv.CV_8U
+
+            );
+
+
+        const bordesCerrados =
+            new cv.Mat();
+
+
+        cv.morphologyEx(
+
+            bordes,
+
+            bordesCerrados,
+
+            cv.MORPH_CLOSE,
+
+            kernel
+
+        );
+
+
+        /* ==========================================
+           6. BUSCAR CONTORNOS
+        =========================================== */
+
+        const contornos =
+            new cv.MatVector();
+
+
+        const jerarquia =
+            new cv.Mat();
+
+
+        cv.findContours(
+
+            bordesCerrados,
+
+            contornos,
+
+            jerarquia,
+
+            cv.RETR_EXTERNAL,
+
+            cv.CHAIN_APPROX_SIMPLE
+
+        );
+
+
+        let mejorContorno = null;
+
+        let mejorArea = 0;
+
+
+        const areaImagen =
+            imagen.cols *
+            imagen.rows;
+
+
+        /* ==========================================
+           7. BUSCAR DOCUMENTO
+        =========================================== */
+
+        for (
+
+            let i = 0;
+
+            i < contornos.size();
+
+            i++
+
+        ) {
+
+            const contorno =
+                contornos.get(i);
+
+
+            const area =
+                cv.contourArea(contorno);
+
+
+            /*
+             * Para las líneas verdes
+             * usamos un mínimo más bajo
+             * que la captura.
+             *
+             * Esto NO modifica tu
+             * procesarDocumento().
+             */
+
+            if (
+
+                area <
+                areaImagen * 0.15
+
+            ) {
+
+                contorno.delete();
+
+                continue;
+
+            }
+
+
+            const perimetro =
+                cv.arcLength(
+
+                    contorno,
+
+                    true
+
+                );
+
+
+            const aproximado =
+                new cv.Mat();
+
+
+            /*
+             * Un poco más tolerante
+             * únicamente para la guía
+             * visual.
+             */
+
+            cv.approxPolyDP(
+
+                contorno,
+
+                aproximado,
+
+                0.03 *
+                perimetro,
+
+                true
+
+            );
+
+
+            if (
+
+                aproximado.rows === 4 &&
+
+                cv.isContourConvex(
+                    aproximado
+                )
+
+            ) {
+
+                if (
+
+                    area >
+                    mejorArea
+
+                ) {
+
+                    if (
+                        mejorContorno
+                    ) {
+
+                        mejorContorno.delete();
+
+                    }
+
+
+                    mejorContorno =
+                        aproximado;
+
+                    mejorArea =
+                        area;
+
+                } else {
+
+                    aproximado.delete();
+
+                }
+
+            } else {
+
+                aproximado.delete();
+
+            }
+
+
+            contorno.delete();
+
+        }
+
+
+        /* ==========================================
+           LIMPIAR LÍNEAS ANTERIORES
+        =========================================== */
+
+        contextoDeteccion.clearRect(
+
+            0,
+
+            0,
+
+            canvasDeteccion.width,
+
+            canvasDeteccion.height
+
+        );
+
+
+        /* ==========================================
+           8. DIBUJAR SI ENCONTRAMOS DOCUMENTO
+        =========================================== */
+
+        if (mejorContorno) {
+
+            const puntos =
+                obtenerPuntosOrdenados(
+                    mejorContorno
+                );
+
+
+            /*
+             * Convertimos coordenadas
+             * del canvas pequeño al
+             * tamaño real del video.
+             */
+
+            const escalaX =
+                canvasDeteccion.width /
+                anchoAnalisis;
+
+
+            const escalaY =
+                canvasDeteccion.height /
+                altoAnalisis;
+
+
+            for (
+
+                let i = 0;
+
+                i < puntos.length;
+
+                i++
+
+            ) {
+
+                puntos[i].x *=
+                    escalaX;
+
+                puntos[i].y *=
+                    escalaY;
+
+            }
+
+
+            dibujarLineasVerdes(
+                puntos
+            );
+
+        }
+
+
+        /* ==========================================
+           LIMPIAR MEMORIA
+        =========================================== */
+
+        imagen.delete();
+
+        gris.delete();
+
+        desenfoque.delete();
+
+        bordes.delete();
+
+        kernel.delete();
+
+        bordesCerrados.delete();
+
+        contornos.delete();
+
+        jerarquia.delete();
+
+
+        if (mejorContorno) {
+
+            mejorContorno.delete();
+
+        }
+
+
+    } catch (error) {
+
+        /*
+         * Solo mostramos el error
+         * en consola para no interrumpir
+         * la cámara.
+         */
+
+        console.error(
+
+            "Error en detección visual:",
+
+            error
+
+        );
+
+    }
+
+
+    /*
+     * Continuar detección.
+     */
+
+    requestAnimationFrame(
+        detectarDocumentoEnVivo
+    );
+
+}
+
+
+
+/* ==========================================
+   DIBUJAR LÍNEAS VERDES
+========================================== */
+
+function dibujarLineasVerdes(puntos) {
+
+    if (puntos.length !== 4) {
+
+        return;
+
+    }
+
+
+    const ctx =
+        contextoDeteccion;
+
+
+    /* ==========================================
+       CONFIGURACIÓN DE LÍNEAS
+    =========================================== */
+
+    ctx.strokeStyle =
+        "#00ff00";
+
+
+    ctx.lineWidth =
+        6;
+
+
+    ctx.lineJoin =
+        "round";
+
+
+    ctx.lineCap =
+        "round";
+
+
+    /*
+     * Pequeño brillo para
+     * que sea visible.
+     */
+
+    ctx.shadowColor =
+        "rgba(0, 255, 0, 0.8)";
+
+
+    ctx.shadowBlur =
+        8;
+
+
+    /* ==========================================
+       DIBUJAR DOCUMENTO
+    =========================================== */
+
+    ctx.beginPath();
+
+
+    ctx.moveTo(
+
+        puntos[0].x,
+
+        puntos[0].y
+
+    );
+
+
+    ctx.lineTo(
+
+        puntos[1].x,
+
+        puntos[1].y
+
+    );
+
+
+    ctx.lineTo(
+
+        puntos[2].x,
+
+        puntos[2].y
+
+    );
+
+
+    ctx.lineTo(
+
+        puntos[3].x,
+
+        puntos[3].y
+
+    );
+
+
+    ctx.closePath();
+
+
+    ctx.stroke();
+
+
+    /* ==========================================
+       ESQUINAS
+    =========================================== */
+
+    ctx.fillStyle =
+        "#00ff00";
+
+
+    for (
+
+        const punto of puntos
+
+    ) {
+
+        ctx.beginPath();
+
+
+        ctx.arc(
+
+            punto.x,
+
+            punto.y,
+
+            7,
+
+            0,
+
+            Math.PI * 2
+
+        );
+
+
+        ctx.fill();
+
+    }
+
+
+    /* ==========================================
+       QUITAR SOMBRA
+    =========================================== */
+
+    ctx.shadowBlur =
+        0;
+
+}
