@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport" 
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Digitalizador de Documentos</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="contenedor">
+
+        <h1>📄 Digitalizador de Documentos</h1>
+
+        <p class="descripcion">
+            Selecciona el tamaño del documento que deseas digitalizar.
+        </p>
+
+
+        <div class="grupo-control">
+
+            <label for="tamanoHoja">
+                Tamaño del documento
+            </label>
+
+            <select id="tamanoHoja">
+
+                <option value="carta">
+                    Carta
+                </option>
+
+                <option value="oficio">
+                    Oficio
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <button id="btnAbrirCamara">
+
+            📷 Abrir cámara
+
+        </button>
+
+
+        <!-- CONTENEDOR DE LA CÁMARA -->
+
+        <div id="contenedorCamara" class="oculto">
+
+            <video 
+                id="video"
+                autoplay
+                playsinline>
+            </video>
+
+            <div id="guiaDocumento">
+            </div>
+
+        </div>
+
+        <!-- BOTÓN FUERA DE LA CÁMARA -->
+
+        <div id="controlesCamara" class="oculto">
+
+            <button id="btnCapturar">
+
+                📸 Capturar documento
+
+            </button>
+
+        </div>
+
+
+        <!-- CANVAS OCULTO -->
+
+        <canvas id="canvas" class="oculto"></canvas>
+
+
+        <!-- RESULTADO -->
+
+        <div id="resultado" class="oculto">
+
+            <h2>Vista previa</h2>
+
+            <canvas id="canvasResultado"></canvas>
+
+
+            <div class="botonesResultado">
+
+                <button id="btnRepetir">
+
+                    🔄 Tomar otra foto
+
+                </button>
+
+
+                <button id="btnConfirmar">
+
+                    ✅ Confirmar documento
+
+                </button>
+
+            </div>
+
+        </div>
+
+
+    </div>
+
+
+    <script src="script.js"></script>
+
+</body>
+</html>

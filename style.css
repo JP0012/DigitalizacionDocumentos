@@ -1,0 +1,256 @@
+* {
+    box-sizing: border-box;
+}
+
+
+body {
+
+    margin: 0;
+
+    font-family: Arial, sans-serif;
+
+    background: #f2f2f2;
+
+}
+
+
+.contenedor {
+
+    max-width: 800px;
+
+    margin: auto;
+
+    padding: 20px;
+
+    text-align: center;
+
+}
+
+
+h1 {
+
+    margin-bottom: 10px;
+
+}
+
+
+.descripcion {
+
+    color: #555;
+
+}
+
+
+.grupo-control {
+
+    margin: 25px 0;
+
+}
+
+
+label {
+
+    display: block;
+
+    margin-bottom: 10px;
+
+    font-weight: bold;
+
+}
+
+
+select {
+
+    padding: 10px;
+
+    font-size: 16px;
+
+}
+
+
+button {
+
+    padding: 12px 20px;
+
+    font-size: 16px;
+
+    border: none;
+
+    border-radius: 8px;
+
+    cursor: pointer;
+
+}
+
+
+#btnAbrirCamara {
+
+    background: #0078d4;
+
+    color: white;
+
+}
+
+
+/* ========================= */
+/* CONTENEDOR DE LA CÁMARA */
+/* ========================= */
+
+#contenedorCamara {
+
+    position: relative;
+
+    width: 100%;
+
+    margin-top: 25px;
+
+    overflow: hidden;
+
+    border-radius: 10px;
+
+    background: black;
+
+}
+
+
+#video {
+
+    width: 100%;
+
+    display: block;
+
+}
+
+
+/* ========================= */
+/* GUÍA DEL DOCUMENTO */
+/* ========================= */
+
+#guiaDocumento {
+
+    position: absolute;
+
+    top: 50%;
+
+    left: 50%;
+
+    transform: translate(-50%, -50%);
+
+    height: 82%;
+
+    width: auto;
+
+    aspect-ratio: 8.5 / 11;
+
+    border: 3px solid white;
+
+    border-radius: 5px;
+
+    pointer-events: none;
+
+    z-index: 10;
+
+}
+
+
+/* BOTÓN DE CAPTURA */
+
+#btnCapturar {
+
+    margin: 15px;
+
+    background: #ffffff;
+
+}
+
+
+/* ========================= */
+/* RESULTADO */
+/* ========================= */
+
+#resultado {
+
+    margin-top: 25px;
+
+}
+
+
+#canvasResultado {
+
+    max-width: 100%;
+
+    border: 1px solid #ccc;
+
+}
+
+
+.botonesResultado {
+
+    margin-top: 20px;
+
+    display: flex;
+
+    justify-content: center;
+
+    gap: 15px;
+
+}
+
+
+#btnRepetir {
+
+    background: #777;
+
+    color: white;
+
+}
+
+
+#btnConfirmar {
+
+    background: #107c10;
+
+    color: white;
+
+}
+
+
+.oculto {
+
+    display: none;
+
+}
+
+#controlesCamara {
+
+    margin-top: 15px;
+
+    text-align: center;
+
+}
+
+
+#controlesCamara button {
+
+    background: #0078d4;
+
+    color: white;
+
+    padding: 12px 25px;
+
+    font-size: 16px;
+
+    border: none;
+
+    border-radius: 8px;
+
+    cursor: pointer;
+
+}
+
+
+#controlesCamara button:hover {
+
+    opacity: 0.9;
+
+}
