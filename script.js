@@ -53,40 +53,73 @@ btnAbrirCamara.addEventListener("click", async () => {
     try {
 
         streamCamara =
-            await navigator.mediaDevices.getUserMedia({
+    await navigator.mediaDevices.getUserMedia({
 
-                video: {
+        video: {
 
-                    facingMode: {
-                        ideal: "environment"
-                    },
+            facingMode: {
+                ideal: "environment"
+            },
 
-                    width: {
-                        ideal: 1920
-                    },
+            width: {
+                ideal: 3840
+            },
 
-                    height: {
-                        ideal: 1080
-                    }
+            height: {
+                ideal: 2160
+            }
 
-                },
+        },
 
-                audio: false
+        audio: false
 
-            });
+    });
 
 
         video.srcObject = streamCamara;
 
-        video.addEventListener(
-    "loadedmetadata",
-    () => {
+        const track =
+    streamCamara.getVideoTracks()[0];
 
-        iniciarDeteccionEnVivo();
+const capacidades =
+    track.getCapabilities();
 
-    },
-    { once: true }
+
+console.log(
+    "Capacidades de la cámara:",
+    capacidades
 );
+
+
+try {
+
+    if (
+        capacidades.focusMode
+    ) {
+
+        await track.applyConstraints({
+
+            advanced: [
+
+                {
+                    focusMode:
+                        "continuous"
+                }
+
+            ]
+
+        });
+
+    }
+
+} catch (error) {
+
+    console.log(
+        "El enfoque continuo no está disponible:",
+        error
+    );
+
+}
 
 
 
@@ -962,7 +995,7 @@ function obtenerDimensionesDocumento() {
      * seleccionado.
      */
 
-    const ancho = 1200;
+    const ancho = 2000;
 
     let alto;
 
@@ -1032,9 +1065,7 @@ function obtenerDimensionesDocumento() {
 function mejorarDocumento() {
 
     const contexto =
-        canvasResultado.getContext(
-            "2d"
-        );
+        canvasResultado.getContext("2d");
 
 
     const ancho =
@@ -1044,14 +1075,16 @@ function mejorarDocumento() {
         canvasResultado.height;
 
 
+    /* ==========================================
+       OBTENER IMAGEN ORIGINAL
+    ========================================== */
+
     const imagen =
         contexto.getImageData(
-
             0,
             0,
             ancho,
             alto
-
         );
 
 
@@ -1059,9 +1092,20 @@ function mejorarDocumento() {
         imagen.data;
 
 
+    /*
+     * Creamos una copia de la imagen original.
+     *
+     * Es importante porque utilizaremos los píxeles
+     * vecinos para mejorar la nitidez.
+     */
+
+    const original =
+        new Uint8ClampedArray(datos);
+
+
     /* ==========================================
-       ESCALA DE GRISES
-    =========================================== */
+       ESCALA DE GRISES + CONTRASTE
+    ========================================== */
 
     for (
         let i = 0;
@@ -1070,13 +1114,13 @@ function mejorarDocumento() {
     ) {
 
         const rojo =
-            datos[i];
+            original[i];
 
         const verde =
-            datos[i + 1];
+            original[i + 1];
 
         const azul =
-            datos[i + 2];
+            original[i + 2];
 
 
         let gris =
@@ -1088,9 +1132,9 @@ function mejorarDocumento() {
             (0.114 * azul);
 
 
-        /* ==========================================
-           CONTRASTE
-        =========================================== */
+        /*
+         * CONTRASTE SUAVE
+         */
 
         const contraste =
             1.12;
@@ -1103,27 +1147,24 @@ function mejorarDocumento() {
             ) + 128;
 
 
-        /* ==========================================
-           ACLARAR PAPEL
-        =========================================== */
+        /*
+         * ACLARAR PAPEL
+         */
 
         gris += 12;
 
 
-        /* ==========================================
-           LIMITAR
-        =========================================== */
+        /*
+         * LIMITAR VALORES
+         */
 
         gris =
             Math.max(
-
                 0,
-
                 Math.min(
                     255,
                     gris
                 )
-
             );
 
 
@@ -1142,17 +1183,297 @@ function mejorarDocumento() {
     }
 
 
-    /* ==========================================
-       MOSTRAR RESULTADO
-    =========================================== */
+    /*
+     * Aplicamos primero la escala de grises.
+     */
 
     contexto.putImageData(
-
         imagen,
-
         0,
         0
+    );
 
+
+    /* ==========================================
+       NITIDEZ (SHARPEN)
+    ========================================== */
+
+    const imagenGris =
+        contexto.getImageData(
+            0,
+            0,
+            ancho,
+            alto
+        );
+
+
+    const grisOriginal =
+        new Uint8ClampedArray(
+            imagenGris.data
+        );
+
+
+    const resultadoNitidez =
+        contexto.createImageData(
+            ancho,
+            alto
+        );
+
+
+    const salida =
+        resultadoNitidez.data;
+
+
+    /*
+     * Intensidad de la nitidez.
+     *
+     * 0.0 = sin nitidez
+     * 0.3 = suave
+     * 0.5 = recomendada
+     * 1.0 = fuerte
+     */
+
+    const intensidad =
+        0.45;
+
+
+    /*
+     * Recorremos la imagen.
+     *
+     * Dejamos intactos los bordes externos
+     * para evitar errores.
+     */
+
+    for (
+        let y = 1;
+        y < alto - 1;
+        y++
+    ) {
+
+        for (
+            let x = 1;
+            x < ancho - 1;
+            x++
+        ) {
+
+            const indice =
+                (
+                    y *
+                    ancho +
+                    x
+                ) * 4;
+
+
+            const arriba =
+                indice -
+                (ancho * 4);
+
+
+            const abajo =
+                indice +
+                (ancho * 4);
+
+
+            const izquierda =
+                indice - 4;
+
+
+            const derecha =
+                indice + 4;
+
+
+            /*
+             * Filtro de nitidez:
+             *
+             * centro * 5
+             * menos los 4 vecinos.
+             */
+
+            const centro =
+                grisOriginal[indice];
+
+
+            const valorNitido =
+                (
+                    centro * 5
+                )
+
+                -
+
+                grisOriginal[arriba]
+
+                -
+
+                grisOriginal[abajo]
+
+                -
+
+                grisOriginal[izquierda]
+
+                -
+
+                grisOriginal[derecha];
+
+
+            /*
+             * Mezclamos el resultado original
+             * con la nitidez para evitar que
+             * las letras se vuelvan demasiado negras.
+             */
+
+            let grisFinal =
+
+                centro +
+
+                (
+                    (
+                        valorNitido -
+                        centro
+                    )
+                    *
+                    intensidad
+                );
+
+
+            grisFinal =
+                Math.max(
+                    0,
+                    Math.min(
+                        255,
+                        grisFinal
+                    )
+                );
+
+
+            salida[indice] =
+                grisFinal;
+
+            salida[indice + 1] =
+                grisFinal;
+
+            salida[indice + 2] =
+                grisFinal;
+
+            salida[indice + 3] =
+                255;
+
+        }
+
+    }
+
+
+    /*
+     * Copiar los bordes originales.
+     */
+
+    for (
+        let x = 0;
+        x < ancho;
+        x++
+    ) {
+
+        let arriba =
+            x * 4;
+
+
+        let abajo =
+            (
+                (
+                    alto - 1
+                ) *
+                ancho +
+                x
+            ) * 4;
+
+
+        salida[arriba] =
+            grisOriginal[arriba];
+
+        salida[arriba + 1] =
+            grisOriginal[arriba + 1];
+
+        salida[arriba + 2] =
+            grisOriginal[arriba + 2];
+
+        salida[arriba + 3] =
+            255;
+
+
+        salida[abajo] =
+            grisOriginal[abajo];
+
+        salida[abajo + 1] =
+            grisOriginal[abajo + 1];
+
+        salida[abajo + 2] =
+            grisOriginal[abajo + 2];
+
+        salida[abajo + 3] =
+            255;
+
+    }
+
+
+    for (
+        let y = 0;
+        y < alto;
+        y++
+    ) {
+
+        let izquierda =
+            (
+                y *
+                ancho
+            ) * 4;
+
+
+        let derecha =
+            (
+                (
+                    y *
+                    ancho
+                ) +
+                ancho -
+                1
+            ) * 4;
+
+
+        salida[izquierda] =
+            grisOriginal[izquierda];
+
+        salida[izquierda + 1] =
+            grisOriginal[izquierda + 1];
+
+        salida[izquierda + 2] =
+            grisOriginal[izquierda + 2];
+
+        salida[izquierda + 3] =
+            255;
+
+
+        salida[derecha] =
+            grisOriginal[derecha];
+
+        salida[derecha + 1] =
+            grisOriginal[derecha + 1];
+
+        salida[derecha + 2] =
+            grisOriginal[derecha + 2];
+
+        salida[derecha + 3] =
+            255;
+
+    }
+
+
+    /* ==========================================
+       MOSTRAR RESULTADO FINAL
+    ========================================== */
+
+    contexto.putImageData(
+        resultadoNitidez,
+        0,
+        0
     );
 
 }
