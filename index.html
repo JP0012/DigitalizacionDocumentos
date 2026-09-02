@@ -1,15 +1,18 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
+
     <meta charset="UTF-8">
 
-    <meta name="viewport" 
-          content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Digitalizador de Documentos</title>
 
     <link rel="stylesheet" href="style.css">
+
 </head>
+
 
 <body>
 
@@ -21,6 +24,10 @@
             Selecciona el tamaño del documento que deseas digitalizar.
         </p>
 
+
+        <!-- ==========================================
+             TAMAÑO DEL DOCUMENTO
+        =========================================== -->
 
         <div class="grupo-control">
 
@@ -34,6 +41,10 @@
                     Carta
                 </option>
 
+                <option value="a4">
+                    A4
+                </option>
+
                 <option value="oficio">
                     Oficio
                 </option>
@@ -43,6 +54,10 @@
         </div>
 
 
+        <!-- ==========================================
+             ABRIR CÁMARA
+        =========================================== -->
+
         <button id="btnAbrirCamara">
 
             📷 Abrir cámara
@@ -50,24 +65,52 @@
         </button>
 
 
-        <!-- CONTENEDOR DE LA CÁMARA -->
+        <!-- ==========================================
+             CÁMARA
+        =========================================== -->
 
         <div id="contenedorCamara" class="oculto">
 
-            <video 
+            <video
                 id="video"
                 autoplay
                 playsinline>
             </video>
 
-            <div id="guiaDocumento">
-            </div>
-
         </div>
 
-        <!-- BOTÓN FUERA DE LA CÁMARA -->
+
+        <!-- ==========================================
+             CONTROLES DE CÁMARA
+        =========================================== -->
 
         <div id="controlesCamara" class="oculto">
+
+
+            <!-- ZOOM -->
+
+            <div id="controlZoom" class="oculto">
+
+                <label for="zoomCamara">
+                    🔍 Zoom
+                </label>
+
+                <input
+                    type="range"
+                    id="zoomCamara"
+                    min="1"
+                    max="1"
+                    step="0.1"
+                    value="1">
+
+                <span id="valorZoom">
+                    1.0x
+                </span>
+
+            </div>
+
+
+            <!-- CAPTURAR -->
 
             <button id="btnCapturar">
 
@@ -77,34 +120,33 @@
 
         </div>
 
-        <div id="controlZoom" class="oculto">
-            <label for="zoomCamara">🔍 Zoom</label>
 
-            <input
-                type="range"
-                id="zoomCamara"
-                min="1"
-                max="1"
-                step="0.1"
-                value="1"
-            >
+        <!-- ==========================================
+             CANVAS ORIGINAL
+        =========================================== -->
 
-            <span id="valorZoom">1.0x</span>
-        </div>
+        <canvas
+            id="canvas"
+            class="oculto">
+        </canvas>
 
 
-        <!-- CANVAS OCULTO -->
+        <!-- ==========================================
+             RESULTADO
+        =========================================== -->
 
-        <canvas id="canvas" class="oculto"></canvas>
+        <div
+            id="resultado"
+            class="oculto">
+
+            <h2>
+                Vista previa
+            </h2>
 
 
-        <!-- RESULTADO -->
-
-        <div id="resultado" class="oculto">
-
-            <h2>Vista previa</h2>
-
-            <canvas id="canvasResultado"></canvas>
+            <canvas
+                id="canvasResultado">
+            </canvas>
 
 
             <div class="botonesResultado">
@@ -126,11 +168,30 @@
 
         </div>
 
-
     </div>
 
+
+    <!-- ==========================================
+         OPENCV
+         
+         NO ES INTELIGENCIA ARTIFICIAL.
+         
+         Se utiliza para:
+         - detectar bordes
+         - encontrar contornos
+         - detectar las 4 esquinas
+         - corregir perspectiva
+    =========================================== -->
+
+    <script src="https://docs.opencv.org/4.x/opencv.js"></script>
+
+
+    <!-- ==========================================
+         NUESTRO JAVASCRIPT
+    =========================================== -->
 
     <script src="script.js"></script>
 
 </body>
+
 </html>
