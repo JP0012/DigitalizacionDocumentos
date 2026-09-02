@@ -421,7 +421,7 @@ function procesarDocumento() {
 
             if (
                 area <
-                areaImagen * 0.15
+                areaImagen * 1.0
             ) {
 
                 contorno.delete();
