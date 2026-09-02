@@ -78,11 +78,89 @@ btnAbrirCamara.addEventListener("click", async () => {
 
         video.srcObject = streamCamara;
 
-        const track =
+       video.srcObject = streamCamara;
+
+
+/* ==========================================
+   CONFIGURAR ENFOQUE
+========================================== */
+
+const track =
     streamCamara.getVideoTracks()[0];
 
 const capacidades =
     track.getCapabilities();
+
+
+console.log(
+    "Capacidades de la cámara:",
+    capacidades
+);
+
+
+try {
+
+    if (
+        capacidades.focusMode
+    ) {
+
+        await track.applyConstraints({
+
+            advanced: [
+
+                {
+                    focusMode:
+                        "continuous"
+                }
+
+            ]
+
+        });
+
+    }
+
+} catch (error) {
+
+    console.log(
+        "El enfoque continuo no está disponible:",
+        error
+    );
+
+}
+
+
+/* ==========================================
+   ESPERAR A QUE EL VIDEO ESTÉ LISTO
+========================================== */
+
+video.addEventListener(
+    "loadedmetadata",
+    async () => {
+
+        try {
+
+            await video.play();
+
+        } catch (error) {
+
+            console.log(
+                "El video ya está reproduciéndose."
+            );
+
+        }
+
+
+        /*
+         * Iniciar las líneas verdes
+         */
+
+        iniciarDeteccionEnVivo();
+
+    },
+    {
+        once: true
+    }
+);
 
 
 console.log(
@@ -1608,26 +1686,68 @@ zoomCamara.addEventListener(
 
 function iniciarDeteccionEnVivo() {
 
+    /*
+     * Si ya existe una detección activa,
+     * no iniciamos otra.
+     */
+
     if (deteccionActiva) {
 
         return;
 
     }
 
+
+    /*
+     * Esperar a que tengamos dimensiones
+     * reales de la cámara.
+     */
+
+    if (
+
+        !video.videoWidth ||
+
+        !video.videoHeight
+
+    ) {
+
+        setTimeout(
+
+            iniciarDeteccionEnVivo,
+
+            200
+
+        );
+
+        return;
+
+    }
+
+
     deteccionActiva = true;
 
 
     /*
-     * Usamos las dimensiones reales
-     * del video para que las líneas
-     * coincidan con la cámara.
+     * IMPORTANTE:
+     *
+     * Ajustamos el canvas usando exactamente
+     * las dimensiones reales del video.
      */
 
     canvasDeteccion.width =
         video.videoWidth;
 
+
     canvasDeteccion.height =
         video.videoHeight;
+
+
+    console.log(
+        "Detección iniciada:",
+        video.videoWidth,
+        "x",
+        video.videoHeight
+    );
 
 
     detectarDocumentoEnVivo();
