@@ -2432,7 +2432,20 @@ function verificarCamaraEstable() {
             capturarPorCamaraEstable();
         }
 
-        const editorManual =
+
+    } else {
+
+        /*
+         * La cámara se movió.
+         *
+         * Reiniciamos el contador.
+         */
+
+        camaraEstableDesde = null;
+    }
+}
+
+ const editorManual =
     document.getElementById(
         "editorManual"
     );
@@ -2950,18 +2963,6 @@ const btnCancelarEditor =
         matriz.delete();
         resultadoOpenCV.delete();
     }
-
-    } else {
-
-        /*
-         * La cámara se movió.
-         *
-         * Reiniciamos el contador.
-         */
-
-        camaraEstableDesde = null;
-    }
-}
 
 
 function capturarPorCamaraEstable() {
