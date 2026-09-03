@@ -2427,7 +2427,7 @@ function verificarCamaraEstable() {
          * 1.5 segundos de estabilidad.
          */
 
-        if (tiempoEstable >= 500) {
+        if (tiempoEstable >= 100) {
 
             capturarPorCamaraEstable();
         }
