@@ -43,6 +43,8 @@ let deteccionActiva = false;
 
 let ultimaDeteccion = 0;
 
+let capturaAutomaticaEnProceso = false;
+
 
 /* ==========================================
    ABRIR CÁMARA
@@ -2168,7 +2170,7 @@ function detectarDocumentoEnVivo(timestamp) {
                     mejorContorno
                 );
 
-
+                
             /*
              * Convertimos coordenadas
              * del canvas pequeño al
@@ -2207,6 +2209,13 @@ function detectarDocumentoEnVivo(timestamp) {
             dibujarLineasVerdes(
                 puntos
             );
+
+            verificarEstabilidadDocumento(puntos);
+
+        }
+        else {
+
+            documentoEstableDesde = null;
 
         }
 
@@ -2412,5 +2421,165 @@ function dibujarLineasVerdes(puntos) {
 
     ctx.shadowBlur =
         0;
+
+}
+
+function verificarEstabilidadDocumento(puntos) {
+
+    if (
+        capturaAutomaticaEnProceso
+    ) {
+        return;
+    }
+
+
+    /*
+     * Primera detección.
+     */
+
+    if (
+        documentoEstableDesde === null
+    ) {
+
+        documentoEstableDesde =
+            Date.now();
+
+        return;
+
+    }
+
+
+    /*
+     * Tiempo que lleva estable.
+     */
+
+    const tiempoEstable =
+        Date.now() -
+        documentoEstableDesde;
+
+
+    /*
+     * Esperamos 1 segundo.
+     */
+
+    if (
+        tiempoEstable >= 1000
+    ) {
+
+        capturarAutomaticamente();
+
+    }
+
+}
+
+function capturarAutomaticamente() {
+
+    if (
+        capturaAutomaticaEnProceso
+    ) {
+        return;
+    }
+
+
+    capturaAutomaticaEnProceso = true;
+
+
+    /*
+     * Guardamos las dimensiones
+     * reales de la cámara.
+     */
+
+    const videoWidth =
+        video.videoWidth;
+
+    const videoHeight =
+        video.videoHeight;
+
+
+    if (
+        !videoWidth ||
+        !videoHeight
+    ) {
+
+        capturaAutomaticaEnProceso =
+            false;
+
+        documentoEstableDesde =
+            null;
+
+        return;
+
+    }
+
+
+    /*
+     * Capturar imagen completa
+     * de máxima resolución.
+     */
+
+    canvas.width =
+        videoWidth;
+
+    canvas.height =
+        videoHeight;
+
+
+    const contexto =
+        canvas.getContext("2d");
+
+
+    contexto.drawImage(
+
+        video,
+
+        0,
+        0,
+
+        videoWidth,
+        videoHeight
+
+    );
+
+
+    /*
+     * Mostrar resultado.
+     */
+
+    resultado.classList.remove(
+        "oculto"
+    );
+
+
+    /*
+     * Procesar exactamente igual
+     * que cuando se presionaba
+     * el botón manual.
+     */
+
+    procesarDocumento();
+
+
+    /*
+     * Detener detección.
+     */
+
+    deteccionActiva = false;
+
+
+    documentoEstableDesde =
+        null;
+
+
+    /*
+     * Permitir una nueva captura
+     * después de procesar.
+     */
+
+    setTimeout(() => {
+
+        capturaAutomaticaEnProceso =
+            false;
+
+    }, 1500);
 
 }
