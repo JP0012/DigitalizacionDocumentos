@@ -673,9 +673,9 @@ function procesarDocumento() {
             contornos.delete();
             jerarquia.delete();
 
-            //alert(
-            //    "No pude detectar las 4 esquinas del documento.\n\nAsegúrate de que el papel esté completamente visible y tenga suficiente contraste con el fondo."
-            //);
+            alert(
+                "No pude detectar las 4 esquinas del documento. Puedes ajustar la imagen a continuación."
+            );
 
             return;
 
