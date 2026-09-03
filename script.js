@@ -50,6 +50,10 @@ let ultimaDeteccion = 0;
 
 let capturaAutomaticaEnProceso = false;
 
+let documentoEstableDesde = null;
+
+let ultimosPuntosDetectados = null;
+
 
 /* ==========================================
    ABRIR CÁMARA
@@ -2211,11 +2215,25 @@ function detectarDocumentoEnVivo(timestamp) {
             }
 
 
-            dibujarLineasVerdes(
-                puntos
-            );
+            ultimosPuntosDetectados = puntos.map(
+    punto => ({
 
-            verificarEstabilidadDocumento(puntos);
+        x: punto.x,
+
+        y: punto.y
+
+    })
+);
+
+
+dibujarLineasVerdes(
+    puntos
+);
+
+
+verificarEstabilidadDocumento(
+    puntos
+);
 
         }
         else {
@@ -2482,17 +2500,24 @@ function capturarAutomaticamente() {
     if (
         capturaAutomaticaEnProceso
     ) {
+
         return;
+
+    }
+
+
+    if (
+        !ultimosPuntosDetectados ||
+        ultimosPuntosDetectados.length !== 4
+    ) {
+
+        return;
+
     }
 
 
     capturaAutomaticaEnProceso = true;
 
-
-    /*
-     * Guardamos las dimensiones
-     * reales de la cámara.
-     */
 
     const videoWidth =
         video.videoWidth;
@@ -2518,8 +2543,7 @@ function capturarAutomaticamente() {
 
 
     /*
-     * Capturar imagen completa
-     * de máxima resolución.
+     * Capturar imagen original.
      */
 
     canvas.width =
@@ -2547,39 +2571,37 @@ function capturarAutomaticamente() {
 
 
     /*
-     * Mostrar resultado.
+     * Detener detección inmediatamente.
      */
 
-    resultado.classList.remove(
-        "oculto"
-    );
+    deteccionActiva =
+        false;
+
+
+    /*
+     * Mostrar mensaje.
+     */
 
     mostrarMensajeExito();
 
-    /*
-     * Procesar exactamente igual
-     * que cuando se presionaba
-     * el botón manual.
-     */
-
-    procesarDocumento();
-
 
     /*
-     * Detener detección.
+     * Procesar utilizando los puntos
+     * que YA detectaron las líneas verdes.
      */
 
-    deteccionActiva = false;
+    procesarDocumentoConPuntos(
+        ultimosPuntosDetectados
+    );
 
 
     documentoEstableDesde =
         null;
 
 
-    /*
-     * Permitir una nueva captura
-     * después de procesar.
-     */
+    ultimosPuntosDetectados =
+        null;
+
 
     setTimeout(() => {
 
@@ -2587,6 +2609,225 @@ function capturarAutomaticamente() {
             false;
 
     }, 1500);
+
+}
+
+function procesarDocumentoConPuntos(
+    puntosVideo
+) {
+
+    try {
+
+        /*
+         * Obtener imagen original.
+         */
+
+        const imagenOriginal =
+            cv.imread(canvas);
+
+
+        /*
+         * IMPORTANTE:
+         *
+         * Los puntos fueron detectados
+         * en las dimensiones del video.
+         *
+         * Canvas y video tienen las mismas
+         * dimensiones en este momento.
+         */
+
+        const puntos =
+            puntosVideo;
+
+
+        /*
+         * Obtener dimensiones finales
+         * según el tamaño seleccionado.
+         */
+
+        const dimensiones =
+            obtenerDimensionesDocumento();
+
+
+        /*
+         * Crear puntos de origen.
+         */
+
+        const puntosOrigen =
+            cv.matFromArray(
+
+                4,
+
+                1,
+
+                cv.CV_32FC2,
+
+                [
+
+                    puntos[0].x,
+                    puntos[0].y,
+
+                    puntos[1].x,
+                    puntos[1].y,
+
+                    puntos[2].x,
+                    puntos[2].y,
+
+                    puntos[3].x,
+                    puntos[3].y
+
+                ]
+
+            );
+
+
+        /*
+         * Crear puntos de destino.
+         */
+
+        const puntosDestino =
+            cv.matFromArray(
+
+                4,
+
+                1,
+
+                cv.CV_32FC2,
+
+                [
+
+                    0,
+                    0,
+
+                    dimensiones.ancho,
+                    0,
+
+                    dimensiones.ancho,
+                    dimensiones.alto,
+
+                    0,
+                    dimensiones.alto
+
+                ]
+
+            );
+
+
+        /*
+         * Crear transformación
+         * de perspectiva.
+         */
+
+        const matrizPerspectiva =
+            cv.getPerspectiveTransform(
+
+                puntosOrigen,
+
+                puntosDestino
+
+            );
+
+
+        const documentoEnderezado =
+            new cv.Mat();
+
+
+        /*
+         * Enderezar documento.
+         */
+
+        cv.warpPerspective(
+
+            imagenOriginal,
+
+            documentoEnderezado,
+
+            matrizPerspectiva,
+
+            new cv.Size(
+
+                dimensiones.ancho,
+
+                dimensiones.alto
+
+            ),
+
+            cv.INTER_CUBIC,
+
+            cv.BORDER_REPLICATE
+
+        );
+
+
+        /*
+         * Mostrar resultado.
+         */
+
+        canvasResultado.width =
+            dimensiones.ancho;
+
+        canvasResultado.height =
+            dimensiones.alto;
+
+
+        cv.imshow(
+
+            canvasResultado,
+
+            documentoEnderezado
+
+        );
+
+
+        /*
+         * Mejorar calidad.
+         */
+
+        mejorarDocumento();
+
+
+        /*
+         * Mostrar resultado.
+         */
+
+        resultado.classList.remove(
+            "oculto"
+        );
+
+
+        /*
+         * Limpiar memoria.
+         */
+
+        imagenOriginal.delete();
+
+        puntosOrigen.delete();
+
+        puntosDestino.delete();
+
+        matrizPerspectiva.delete();
+
+        documentoEnderezado.delete();
+
+
+    } catch (error) {
+
+        console.error(
+
+            "Error procesando captura automática:",
+
+            error
+
+        );
+
+
+        alert(
+
+            "Ocurrió un error al procesar el documento."
+
+        );
+
+    }
 
 }
 
