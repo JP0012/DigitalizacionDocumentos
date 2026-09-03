@@ -462,7 +462,7 @@ function procesarDocumento() {
 
             bordes,
 
-            30,
+            20,
             100
 
         );
@@ -477,8 +477,8 @@ function procesarDocumento() {
 
         const kernel =
             cv.Mat.ones(
-                7,
-                7,
+                10,
+                10,
                 cv.CV_8U
             );
 
@@ -2056,7 +2056,7 @@ function detectarDocumentoEnVivo(timestamp) {
             if (
 
                 area <
-                areaImagen * 0.08
+                areaImagen * 0.04
 
             ) {
 
@@ -2093,7 +2093,7 @@ function detectarDocumentoEnVivo(timestamp) {
 
                 aproximado,
 
-                0.03 *
+                0.06 *
                 perimetro,
 
                 true
