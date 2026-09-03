@@ -2427,7 +2427,7 @@ function verificarCamaraEstable() {
          * 1.5 segundos de estabilidad.
          */
 
-        if (tiempoEstable >= 1500) {
+        if (tiempoEstable >= 500) {
 
             capturarPorCamaraEstable();
         }
@@ -3359,7 +3359,7 @@ function capturarAutomaticamente() {
         capturaAutomaticaEnProceso =
             false;
 
-    }, 1500);
+    }, 200);
 
 }
 
