@@ -50,6 +50,16 @@ let ultimaDeteccion = 0;
 
 let capturaAutomaticaEnProceso = false;
 
+// Control de estabilidad de la cámara
+let documentoEstableDesde = null;
+let camaraEstableDesde = null;
+let ultimaImagenEstable = null;
+
+// Editor manual de esquinas
+let puntosEditor = [];
+let esquinaActiva = -1;
+let escalaEditor = 1;
+
 let documentoEstableDesde = null;
 
 let ultimosPuntosDetectados = null;
@@ -2174,73 +2184,43 @@ function detectarDocumentoEnVivo(timestamp) {
 
         if (mejorContorno) {
 
-            const puntos =
-                obtenerPuntosOrdenados(
-                    mejorContorno
-                );
+    const puntos =
+        obtenerPuntosOrdenados(mejorContorno);
 
-                
-            /*
-             * Convertimos coordenadas
-             * del canvas pequeño al
-             * tamaño real del video.
-             */
+    const escalaX =
+        video.videoWidth /
+        canvasDeteccion.width;
 
-            const escalaX =
-                canvasDeteccion.width /
-                anchoAnalisis;
+    const escalaY =
+        video.videoHeight /
+        canvasDeteccion.height;
 
+    const puntosEscalados =
+        puntos.map(punto => ({
+            x: punto.x * escalaX,
+            y: punto.y * escalaY
+        }));
 
-            const escalaY =
-                canvasDeteccion.height /
-                altoAnalisis;
+    // Tenemos documento detectado
+    // Por lo tanto cancelamos el contador
+    // de "sin detección".
+    camaraEstableDesde = null;
+    ultimaImagenEstable = null;
 
+    dibujarLineasVerdes(puntosEscalados);
 
-            for (
+    verificarEstabilidadDocumento(
+        puntosEscalados
+    );
 
-                let i = 0;
+} else {
 
-                i < puntos.length;
+    // No encontramos los bordes.
+    documentoEstableDesde = null;
 
-                i++
+    verificarCamaraEstable();
 
-            ) {
-
-                puntos[i].x *=
-                    escalaX;
-
-                puntos[i].y *=
-                    escalaY;
-
-            }
-
-
-            ultimosPuntosDetectados = puntos.map(
-    punto => ({
-
-        x: punto.x,
-
-        y: punto.y
-
-    })
-);
-
-
-dibujarLineasVerdes(
-    puntos
-);
-
-
-verificarEstabilidadDocumento(
-    puntos
-);
-
-        }
-        else {
-
-            documentoEstableDesde = null;
-
-        }
+}
 
 
         /* ==========================================
@@ -2298,6 +2278,777 @@ verificarEstabilidadDocumento(
         detectarDocumentoEnVivo
     );
 
+}
+
+function verificarCamaraEstable() {
+
+    if (capturaAutomaticaEnProceso) {
+        return;
+    }
+
+    if (
+        !video.videoWidth ||
+        !video.videoHeight
+    ) {
+        return;
+    }
+
+    /*
+     * Utilizamos una imagen pequeña para comparar
+     * cuadros consecutivos.
+     */
+
+    const ancho = 120;
+
+    const alto =
+        Math.round(
+            video.videoHeight *
+            (ancho / video.videoWidth)
+        );
+
+    const canvasEstabilidad =
+        document.createElement("canvas");
+
+    canvasEstabilidad.width = ancho;
+    canvasEstabilidad.height = alto;
+
+    const contexto =
+        canvasEstabilidad.getContext("2d", {
+            willReadFrequently: true
+        });
+
+    contexto.drawImage(
+        video,
+        0,
+        0,
+        ancho,
+        alto
+    );
+
+    const imagenActual =
+        contexto.getImageData(
+            0,
+            0,
+            ancho,
+            alto
+        );
+
+    /*
+     * Primer cuadro:
+     * todavía no podemos saber si está quieta.
+     */
+
+    if (ultimaImagenEstable === null) {
+
+        ultimaImagenEstable =
+            imagenActual;
+
+        camaraEstableDesde =
+            null;
+
+        return;
+    }
+
+    let diferencia = 0;
+
+    /*
+     * Comparamos los píxeles del cuadro
+     * actual con el anterior.
+     */
+
+    for (
+        let i = 0;
+        i < imagenActual.data.length;
+        i += 16
+    ) {
+
+        diferencia +=
+            Math.abs(
+                imagenActual.data[i] -
+                ultimaImagenEstable.data[i]
+            );
+
+        diferencia +=
+            Math.abs(
+                imagenActual.data[i + 1] -
+                ultimaImagenEstable.data[i + 1]
+            );
+
+        diferencia +=
+            Math.abs(
+                imagenActual.data[i + 2] -
+                ultimaImagenEstable.data[i + 2]
+            );
+    }
+
+    const cantidadMuestras =
+        Math.ceil(
+            imagenActual.data.length / 16
+        );
+
+    const diferenciaPromedio =
+        diferencia /
+        (cantidadMuestras * 3);
+
+    ultimaImagenEstable =
+        imagenActual;
+
+    /*
+     * Este valor controla qué consideramos
+     * "cámara quieta".
+     *
+     * Un valor pequeño = más estricto.
+     * Un valor grande = más tolerante.
+     */
+
+    const UMBRAL_MOVIMIENTO = 3.5;
+
+    if (
+        diferenciaPromedio <=
+        UMBRAL_MOVIMIENTO
+    ) {
+
+        /*
+         * La cámara está prácticamente quieta.
+         */
+
+        if (camaraEstableDesde === null) {
+
+            camaraEstableDesde =
+                Date.now();
+
+            return;
+        }
+
+        const tiempoEstable =
+            Date.now() -
+            camaraEstableDesde;
+
+        /*
+         * 1.5 segundos de estabilidad.
+         */
+
+        if (tiempoEstable >= 1500) {
+
+            capturarPorCamaraEstable();
+        }
+
+        const editorManual =
+    document.getElementById(
+        "editorManual"
+    );
+
+const canvasEditor =
+    document.getElementById(
+        "canvasEditor"
+    );
+
+const contextoEditor =
+    canvasEditor.getContext("2d");
+
+const btnConfirmarEsquinas =
+    document.getElementById(
+        "btnConfirmarEsquinas"
+    );
+
+const btnCancelarEditor =
+    document.getElementById(
+        "btnCancelarEditor"
+    );
+
+    function mostrarEditorManual() {
+
+    editorManual.classList.remove(
+        "oculto"
+    );
+
+    resultado.classList.add(
+        "oculto"
+    );
+
+    /*
+     * No hacemos el editor a 4K porque sería
+     * innecesariamente pesado.
+     *
+     * La imagen original permanece en "canvas".
+     */
+
+    const anchoMaximo = 1000;
+
+    escalaEditor =
+        Math.min(
+            1,
+            anchoMaximo / canvas.width
+        );
+
+    canvasEditor.width =
+        Math.round(
+            canvas.width *
+            escalaEditor
+        );
+
+    canvasEditor.height =
+        Math.round(
+            canvas.height *
+            escalaEditor
+        );
+
+    /*
+     * Inicialmente ponemos las esquinas
+     * en las cuatro esquinas de la foto.
+     */
+
+    puntosEditor = [
+
+        {
+            x: 10,
+            y: 10
+        },
+
+        {
+            x:
+                canvasEditor.width - 10,
+            y: 10
+        },
+
+        {
+            x:
+                canvasEditor.width - 10,
+            y:
+                canvasEditor.height - 10
+        },
+
+        {
+            x: 10,
+            y:
+                canvasEditor.height - 10
+        }
+
+    ];
+
+        dibujarEditorManual();
+    }
+
+    function dibujarEditorManual() {
+
+    contextoEditor.clearRect(
+        0,
+        0,
+        canvasEditor.width,
+        canvasEditor.height
+    );
+
+    /*
+     * Imagen original.
+     */
+
+    contextoEditor.drawImage(
+        canvas,
+        0,
+        0,
+        canvasEditor.width,
+        canvasEditor.height
+    );
+
+    /*
+     * Línea que une las esquinas.
+     */
+
+    contextoEditor.beginPath();
+
+    contextoEditor.moveTo(
+        puntosEditor[0].x,
+        puntosEditor[0].y
+    );
+
+    for (
+        let i = 1;
+        i < puntosEditor.length;
+        i++
+    ) {
+
+        contextoEditor.lineTo(
+            puntosEditor[i].x,
+            puntosEditor[i].y
+        );
+    }
+
+    contextoEditor.closePath();
+
+    contextoEditor.lineWidth = 4;
+    contextoEditor.strokeStyle =
+        "#00e676";
+
+    contextoEditor.stroke();
+
+    /*
+     * Dibujamos las cuatro esquinas.
+     */
+
+    puntosEditor.forEach(
+        (punto, indice) => {
+
+            contextoEditor.beginPath();
+
+            contextoEditor.arc(
+                punto.x,
+                punto.y,
+                18,
+                0,
+                Math.PI * 2
+            );
+
+            contextoEditor.fillStyle =
+                "#00e676";
+
+            contextoEditor.fill();
+
+            contextoEditor.beginPath();
+
+            contextoEditor.arc(
+                punto.x,
+                punto.y,
+                8,
+                0,
+                Math.PI * 2
+            );
+
+            contextoEditor.fillStyle =
+                "#ffffff";
+
+            contextoEditor.fill();
+
+            }
+        );
+    }
+
+    function obtenerPosicionEditor(evento) {
+
+    const rect =
+        canvasEditor.getBoundingClientRect();
+
+    return {
+
+        x:
+            (evento.clientX - rect.left) *
+            (canvasEditor.width / rect.width),
+
+        y:
+            (evento.clientY - rect.top) *
+            (canvasEditor.height / rect.height)
+
+        };
+    }
+
+    canvasEditor.addEventListener(
+    "pointerdown",
+    evento => {
+
+        const posicion =
+            obtenerPosicionEditor(evento);
+
+        let distanciaMinima = 40;
+
+        esquinaActiva = -1;
+
+        puntosEditor.forEach(
+            (punto, indice) => {
+
+                const distancia =
+                    Math.hypot(
+                        posicion.x - punto.x,
+                        posicion.y - punto.y
+                    );
+
+                if (
+                    distancia <
+                    distanciaMinima
+                ) {
+
+                    distanciaMinima =
+                        distancia;
+
+                    esquinaActiva =
+                        indice;
+                }
+
+            }
+        );
+
+        if (esquinaActiva !== -1) {
+
+            canvasEditor.setPointerCapture(
+                evento.pointerId
+            );
+        }
+
+        }
+    );
+
+    canvasEditor.addEventListener(
+    "pointermove",
+    evento => {
+
+        if (esquinaActiva === -1) {
+            return;
+        }
+
+        const posicion =
+            obtenerPosicionEditor(evento);
+
+        /*
+         * Evitamos que la esquina salga
+         * de la imagen.
+         */
+
+        posicion.x =
+            Math.max(
+                0,
+                Math.min(
+                    canvasEditor.width,
+                    posicion.x
+                )
+            );
+
+        posicion.y =
+            Math.max(
+                0,
+                Math.min(
+                    canvasEditor.height,
+                    posicion.y
+                )
+            );
+
+        puntosEditor[
+            esquinaActiva
+        ] = posicion;
+
+        dibujarEditorManual();
+
+        }
+    );
+
+    canvasEditor.addEventListener(
+    "pointerup",
+    () => {
+
+        esquinaActiva = -1;
+
+        }
+    );
+
+    canvasEditor.addEventListener(
+        "pointercancel",
+        () => {
+
+            esquinaActiva = -1;
+
+        }
+    );
+
+    btnConfirmarEsquinas.addEventListener(
+    "click",
+    () => {
+
+        /*
+         * Convertimos las coordenadas
+         * del editor a las coordenadas
+         * de la imagen original.
+         */
+
+        const puntosOriginales =
+            puntosEditor.map(punto => ({
+
+                x:
+                    punto.x /
+                    escalaEditor,
+
+                y:
+                    punto.y /
+                    escalaEditor
+
+            }));
+
+        editorManual.classList.add(
+            "oculto"
+        );
+
+        resultado.classList.remove(
+            "oculto"
+        );
+
+        /*
+         * Aplicamos la perspectiva.
+         */
+
+        procesarDocumentoConPuntos(
+            puntosOriginales
+        );
+
+        capturaAutomaticaEnProceso =
+            false;
+        }
+    );
+
+    btnCancelarEditor.addEventListener(
+    "click",
+    () => {
+
+        editorManual.classList.add(
+            "oculto"
+        );
+
+        resultado.classList.add(
+            "oculto"
+        );
+
+        contenedorCamara.classList.remove(
+            "oculto"
+        );
+
+        document
+            .getElementById("controlesCamara")
+            .classList.remove("oculto");
+
+        capturaAutomaticaEnProceso =
+            false;
+
+        camaraEstableDesde = null;
+        ultimaImagenEstable = null;
+        documentoEstableDesde = null;
+
+        iniciarDeteccionEnVivo();
+        }
+    );
+
+    function procesarDocumentoConPuntos(
+        puntos
+        ) {
+
+        if (
+            typeof cv === "undefined" ||
+            !cv.Mat
+        ) {
+
+            alert(
+                "OpenCV todavía no está disponible."
+            );
+
+            return;
+        }
+
+        if (
+            !puntos ||
+            puntos.length !== 4
+        ) {
+
+            alert(
+                "Las cuatro esquinas del documento no son válidas."
+            );
+
+            return;
+        }
+
+        const imagen =
+            cv.imread(canvas);
+
+        const puntosOrigen =
+            cv.matFromArray(
+                4,
+                1,
+                cv.CV_32FC2,
+                [
+                    puntos[0].x,
+                    puntos[0].y,
+
+                    puntos[1].x,
+                    puntos[1].y,
+
+                    puntos[2].x,
+                    puntos[2].y,
+
+                    puntos[3].x,
+                    puntos[3].y
+                ]
+            );
+
+        const dimensiones =
+            obtenerDimensionesDocumento();
+
+        const ancho =
+            dimensiones.ancho;
+
+        const alto =
+            dimensiones.alto;
+
+        const puntosDestino =
+            cv.matFromArray(
+                4,
+                1,
+                cv.CV_32FC2,
+                [
+                    0,
+                    0,
+
+                    ancho,
+                    0,
+
+                    ancho,
+                    alto,
+
+                    0,
+                    alto
+                ]
+            );
+
+        const matriz =
+            cv.getPerspectiveTransform(
+                puntosOrigen,
+                puntosDestino
+            );
+
+        const resultadoOpenCV =
+            new cv.Mat();
+
+        cv.warpPerspective(
+            imagen,
+            resultadoOpenCV,
+            matriz,
+            new cv.Size(
+                ancho,
+                alto
+            ),
+            cv.INTER_LINEAR,
+            cv.BORDER_REPLICATE
+        );
+
+        canvasResultado.width =
+            ancho;
+
+        canvasResultado.height =
+            alto;
+
+        cv.imshow(
+            canvasResultado,
+            resultadoOpenCV
+        );
+
+        /*
+        * Aplicamos tu mejora actual:
+        * escala de grises, contraste,
+        * brillo y enfoque.
+        */
+
+        mejorarDocumento();
+
+        /*
+        * Liberamos memoria de OpenCV.
+        */
+
+        imagen.delete();
+        puntosOrigen.delete();
+        puntosDestino.delete();
+        matriz.delete();
+        resultadoOpenCV.delete();
+    }
+
+    } else {
+
+        /*
+         * La cámara se movió.
+         *
+         * Reiniciamos el contador.
+         */
+
+        camaraEstableDesde = null;
+    }
+}
+
+
+function capturarPorCamaraEstable() {
+
+    if (capturaAutomaticaEnProceso) {
+        return;
+    }
+
+    capturaAutomaticaEnProceso = true;
+
+    const videoWidth =
+        video.videoWidth;
+
+    const videoHeight =
+        video.videoHeight;
+
+    if (
+        !videoWidth ||
+        !videoHeight
+    ) {
+
+        capturaAutomaticaEnProceso = false;
+        camaraEstableDesde = null;
+        return;
+    }
+
+    /*
+     * Guardamos la imagen completa.
+     */
+
+    canvas.width = videoWidth;
+    canvas.height = videoHeight;
+
+    const contexto =
+        canvas.getContext("2d");
+
+    contexto.drawImage(
+        video,
+        0,
+        0,
+        videoWidth,
+        videoHeight
+    );
+
+    /*
+     * Detenemos la detección en vivo.
+     */
+
+    deteccionActiva = false;
+
+    camaraEstableDesde = null;
+    ultimaImagenEstable = null;
+    documentoEstableDesde = null;
+
+    contextoDeteccion.clearRect(
+        0,
+        0,
+        canvasDeteccion.width,
+        canvasDeteccion.height
+    );
+
+    /*
+     * Ocultamos cámara y controles.
+     */
+
+    contenedorCamara.classList.add(
+        "oculto"
+    );
+
+    document
+        .getElementById("controlesCamara")
+        .classList.add("oculto");
+
+    /*
+     * Mostramos mensaje.
+     */
+
+    mostrarMensajeExito(
+        "✓ Foto tomada. Ajusta las esquinas"
+    );
+
+    /*
+     * Abrimos el editor manual.
+     */
+
+    mostrarEditorManual();
 }
 
 
@@ -2835,12 +3586,15 @@ function procesarDocumentoConPuntos(
    MOSTRAR MENSAJE DE ÉXITO
 ========================================== */
 
-function mostrarMensajeExito() {
+function mostrarMensajeExito(
+    texto = "✓ Foto tomada con éxito"
+) {
+
+    mensajeExito.textContent = texto;
 
     mensajeExito.classList.remove(
         "oculto"
     );
-
 
     setTimeout(() => {
 
@@ -2848,6 +3602,5 @@ function mostrarMensajeExito() {
             "oculto"
         );
 
-    }, 1500);
-
+    }, 2500);
 }

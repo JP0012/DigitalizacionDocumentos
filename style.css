@@ -308,3 +308,54 @@ button {
     display: none;
 
 }
+
+/* ============================= */
+/* EDITOR MANUAL DE DOCUMENTO */
+/* ============================= */
+
+#editorManual {
+    width: 100%;
+    margin-top: 25px;
+}
+
+#editorManual h2 {
+    margin-bottom: 10px;
+}
+
+#editorManual p {
+    margin-bottom: 15px;
+}
+
+#contenedorEditor {
+    position: relative;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    overflow: hidden;
+    background: #111;
+    border-radius: 10px;
+}
+
+#canvasEditor {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    touch-action: none;
+    cursor: crosshair;
+}
+
+.botonesEditor {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+.botonesEditor button {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+}
