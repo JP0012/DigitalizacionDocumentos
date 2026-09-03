@@ -267,3 +267,44 @@ button {
 
     z-index: 10;
 }
+
+/* ==========================================
+   MENSAJE FOTO TOMADA
+========================================== */
+
+.mensaje-exito {
+
+    position: fixed;
+
+    top: 30px;
+
+    left: 50%;
+
+    transform: translateX(-50%);
+
+    padding: 15px 25px;
+
+    background: #198754;
+
+    color: white;
+
+    font-size: 18px;
+
+    font-weight: bold;
+
+    border-radius: 10px;
+
+    z-index: 9999;
+
+    box-shadow:
+        0 4px 15px
+        rgba(0, 0, 0, 0.25);
+
+}
+
+
+.mensaje-exito.oculto {
+
+    display: none;
+
+}

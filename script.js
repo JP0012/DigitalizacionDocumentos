@@ -31,6 +31,11 @@ const zoomCamara =
 const valorZoom =
     document.getElementById("valorZoom");
 
+const mensajeExito =
+    document.getElementById(
+        "mensajeExito"
+    );
+
 const canvasDeteccion =
     document.getElementById("canvasDeteccion");
 
@@ -453,8 +458,8 @@ function procesarDocumento() {
 
             bordes,
 
-            50,
-            150
+            30,
+            100
 
         );
 
@@ -468,8 +473,8 @@ function procesarDocumento() {
 
         const kernel =
             cv.Mat.ones(
-                5,
-                5,
+                7,
+                7,
                 cv.CV_8U
             );
 
@@ -2047,7 +2052,7 @@ function detectarDocumentoEnVivo(timestamp) {
             if (
 
                 area <
-                areaImagen * 0.15
+                areaImagen * 0.08
 
             ) {
 
@@ -2549,6 +2554,7 @@ function capturarAutomaticamente() {
         "oculto"
     );
 
+    mostrarMensajeExito();
 
     /*
      * Procesar exactamente igual
@@ -2579,6 +2585,27 @@ function capturarAutomaticamente() {
 
         capturaAutomaticaEnProceso =
             false;
+
+    }, 1500);
+
+}
+
+/* ==========================================
+   MOSTRAR MENSAJE DE ÉXITO
+========================================== */
+
+function mostrarMensajeExito() {
+
+    mensajeExito.classList.remove(
+        "oculto"
+    );
+
+
+    setTimeout(() => {
+
+        mensajeExito.classList.add(
+            "oculto"
+        );
 
     }, 1500);
 
