@@ -60,7 +60,6 @@ let puntosEditor = [];
 let esquinaActiva = -1;
 let escalaEditor = 1;
 
-let documentoEstableDesde = null;
 
 let ultimosPuntosDetectados = null;
 
